@@ -1,0 +1,49 @@
+# Environment & secrets
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Streamlit
+.streamlit/cache/
+
+# ChromaDB local database (rebuilt on demand)
+knowledge_base/chroma_db/
+
+# Logs
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Source documents (confidential)
+_src/
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Misc
+*.bak
+*.tmp

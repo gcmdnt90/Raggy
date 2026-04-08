@@ -1,0 +1,36 @@
+# Raggy v1.0 — Dependencies
+
+# GUI
+streamlit>=1.30
+
+# Vector DB
+chromadb>=0.4
+
+# LLM Providers
+anthropic
+openai
+google-generativeai
+
+# Embeddings (local)
+sentence-transformers
+
+# PDF parsing
+pdfplumber
+
+# Configuration
+python-dotenv
+pydantic>=2.0
+pydantic-settings
+pyyaml
+
+# Templating
+jinja2
+
+# System profiling (for Ollama model recommendation)
+psutil
+
+# Testing
+pytest
+
+# Utilities
+requests
