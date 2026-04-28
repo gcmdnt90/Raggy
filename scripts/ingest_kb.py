@@ -39,8 +39,8 @@ from app.config import KB_ROOT, CHROMA_PERSIST_DIR, get_settings
 
 
 def load_documents() -> list[dict]:
-    """Auto-discover all .md/.txt/.pdf documents under knowledge_base/."""
-    from app.parsers.documents import extract_text
+    """Auto-discover supported documents under knowledge_base/."""
+    from app.parsers.documents import SUPPORTED_EXTENSIONS, load_document
 
     documents = []
     skip_dirs = {"chroma_db", "__pycache__", "prompts"}
@@ -48,7 +48,7 @@ def load_documents() -> list[dict]:
     for path in sorted(KB_ROOT.rglob("*")):
         if not path.is_file():
             continue
-        if path.suffix.lower() not in (".md", ".txt", ".pdf"):
+        if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
             continue
         # Skip excluded directories
         if any(part in skip_dirs for part in path.parts):
@@ -58,7 +58,7 @@ def load_documents() -> list[dict]:
             continue
 
         try:
-            text = extract_text(path)
+            parsed = load_document(path)
         except Exception as e:
             print(f"  ⚠️  Error reading {path}: {e}")
             continue
@@ -66,25 +66,29 @@ def load_documents() -> list[dict]:
         # Category = first subdirectory under KB_ROOT
         rel = path.relative_to(KB_ROOT)
         category = rel.parts[0] if len(rel.parts) > 1 else "general"
+        metadata = parsed.metadata.copy()
+        metadata.update({
+            "source_file": str(rel),
+            "category": category,
+            "language": "auto",
+        })
 
         documents.append({
-            "text": text,
-            "metadata": {
-                "source_file": str(rel),
-                "category": category,
-                "language": "auto",
-            },
+            "text": parsed.text,
+            "metadata": metadata,
         })
-        print(f"  ✅ {rel} ({len(text)} chars)")
+        print(f"  ✅ {rel} ({len(parsed.text)} chars)")
 
     return documents
 
 
 def chunk_documents(documents: list[dict], chunk_size: int = 800, chunk_overlap: int = 200) -> list[dict]:
     """Split documents into semantic chunks with overlap."""
+    from app.utils.sanitize import sanitize_text
+
     chunks = []
     for doc in documents:
-        text = doc["text"]
+        text = sanitize_text(doc["text"])
         metadata = doc["metadata"]
 
         # Try to split on markdown headers first
@@ -102,13 +106,15 @@ def chunk_documents(documents: list[dict], chunk_size: int = 800, chunk_overlap:
         # Further split large sections
         for section in sections:
             if len(section) <= chunk_size:
-                chunks.append({"text": section.strip(), "metadata": metadata.copy()})
+                chunk_text = sanitize_text(section.strip())
+                if chunk_text:
+                    chunks.append({"text": chunk_text, "metadata": metadata.copy()})
             else:
                 # Sliding window
                 start = 0
                 while start < len(section):
                     end = start + chunk_size
-                    chunk_text = section[start:end].strip()
+                    chunk_text = sanitize_text(section[start:end].strip())
                     if chunk_text:
                         chunks.append({"text": chunk_text, "metadata": metadata.copy()})
                     start += chunk_size - chunk_overlap
@@ -124,6 +130,10 @@ def create_embeddings_and_index(chunks: list[dict], rebuild: bool = False):
 
     if rebuild and CHROMA_PERSIST_DIR.exists():
         import shutil
+        # Release any cached ChromaDB client connections (SQLite locks)
+        from app.rag.retriever import close_chroma_clients
+        close_chroma_clients()
+        import gc; gc.collect()          # help release lingering refs
         shutil.rmtree(persist_dir)
         print("  🗑️  Previous database deleted")
 
@@ -216,7 +226,7 @@ def main(rebuild: bool = False):
 
     if not documents:
         print("\n⚠️  No documents found in knowledge_base/.")
-        print("   Add .md, .txt, or .pdf files to knowledge_base/ and re-run.")
+        print("   Add .md, .txt, .pdf, .docx, or .xlsx files to knowledge_base/ and re-run.")
         return
 
     print("\n── Step 2: Chunking ──")

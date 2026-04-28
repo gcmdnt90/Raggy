@@ -29,6 +29,21 @@ def get_chroma_client(path: str | None = None):
     return _chroma_client_cache[resolved]
 
 
+def close_chroma_clients():
+    """Close all cached ChromaDB clients, releasing file locks (e.g. SQLite)."""
+    for path, client in list(_chroma_client_cache.items()):
+        try:
+            # PersistentClient wraps an internal _server; closing it releases the DB.
+            if hasattr(client, "_server") and hasattr(client._server, "stop"):
+                client._server.stop()
+            elif hasattr(client, "close"):
+                client.close()
+        except Exception:
+            logger.debug("Failed to close ChromaDB client for %s", path, exc_info=True)
+    _chroma_client_cache.clear()
+    logger.debug("All cached ChromaDB clients closed.")
+
+
 @dataclass
 class RetrievedChunk:
     text: str

@@ -1,78 +1,74 @@
-"""Generic document parser for Raggy — handles PDF, MD, and TXT files."""
+"""Generic document parser for Raggy."""
 
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+SUPPORTED_EXTENSIONS = {".md", ".txt", ".pdf", ".docx", ".xlsx"}
+REJECTED_EXTENSIONS = {".docm", ".xlsm", ".xlsb"}
 
-def extract_text(filepath: str | Path) -> str:
-    """Extract plain text from a file.
 
-    Supports:
-    - .md  — read as-is
-    - .txt — read as-is
-    - .pdf — extract via pdfplumber (if installed)
+@dataclass(frozen=True, slots=True)
+class ParsedDocument:
+    """Format-agnostic parsed document."""
 
-    Returns:
-        The extracted text content.
+    text: str
+    metadata: dict
 
-    Raises:
-        ValueError: if the file type is not supported.
-        FileNotFoundError: if the file does not exist.
-    """
+
+def load_document(filepath: str | Path) -> ParsedDocument:
+    """Load a supported document and return text plus metadata."""
     path = Path(filepath)
 
     if not path.exists():
         raise FileNotFoundError(f"File not found: {path}")
 
     suffix = path.suffix.lower()
+    if suffix in REJECTED_EXTENSIONS:
+        raise ValueError(f"Unsupported unsafe file type: {suffix}")
 
     if suffix in (".md", ".txt"):
-        return path.read_text(encoding="utf-8")
+        from app.parsers.text import load_text
+
+        return load_text(path)
 
     if suffix == ".pdf":
-        return _extract_pdf(path)
+        from app.parsers.pdf import load_pdf
+
+        return load_pdf(path)
+
+    if suffix == ".docx":
+        from app.parsers.docx import load_docx
+
+        return load_docx(path)
+
+    if suffix == ".xlsx":
+        from app.parsers.xlsx import load_xlsx
+
+        return load_xlsx(path)
 
     raise ValueError(
-        f"Unsupported file type: {suffix}. Supported: .md, .txt, .pdf"
+        f"Unsupported file type: {suffix}. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
     )
 
 
-def _extract_pdf(path: Path) -> str:
-    """Extract text from a PDF using pdfplumber."""
-    try:
-        import pdfplumber
-    except ImportError:
-        raise ImportError(
-            "pdfplumber is required for PDF parsing. Install with: pip install pdfplumber"
-        )
-
-    text_parts: list[str] = []
-    with pdfplumber.open(str(path)) as pdf:
-        for page in pdf.pages:
-            page_text = page.extract_text()
-            if page_text:
-                text_parts.append(page_text)
-
-    return "\n\n".join(text_parts)
+def extract_text(filepath: str | Path) -> str:
+    """Extract plain text from a supported file."""
+    return load_document(filepath).text
 
 
 def list_supported_files(directory: str | Path) -> list[Path]:
-    """List all supported document files in a directory (recursive).
-
-    Returns:
-        Sorted list of Path objects for .md, .txt, .pdf files.
-    """
+    """List all supported document files in a directory recursively."""
     d = Path(directory)
     if not d.is_dir():
         return []
 
-    extensions = {".md", ".txt", ".pdf"}
     files = [
         f for f in d.rglob("*")
-        if f.is_file() and f.suffix.lower() in extensions
+        if f.is_file() and f.suffix.lower() in SUPPORTED_EXTENSIONS
     ]
     return sorted(files)

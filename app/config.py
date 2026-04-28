@@ -30,7 +30,8 @@ class Settings(BaseSettings):
 
     # Generation parameters
     temperature: float = Field(default=0.3, ge=0.0, le=1.0)
-    max_tokens: int = Field(default=4096, ge=512, le=8192)
+    max_tokens: int = Field(default=1500, ge=512, le=4000)
+    daily_token_budget: int = Field(default=200000, ge=1000, le=10_000_000)
 
     # Hugging Face (optional — avoids rate limits when downloading embedding models)
     hf_token: str = Field(default="", description="Hugging Face access token (optional)")
@@ -62,6 +63,7 @@ _FIELD_TO_ENV: dict[str, str] = {
     "embedding_model": "EMBEDDING_MODEL",
     "temperature": "TEMPERATURE",
     "max_tokens": "MAX_TOKENS",
+    "daily_token_budget": "DAILY_TOKEN_BUDGET",
     "hf_token": "HF_TOKEN",
     "admin_password": "ADMIN_PASSWORD",
 }

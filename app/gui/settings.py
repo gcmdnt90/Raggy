@@ -19,10 +19,11 @@ _DEFAULT_TIMEOUT = {
 
 
 def _init_router(provider: str, api_key: str = "", model: str = "",
-                 base_url: str = "", timeout: int = 120):
+                 base_url: str = "", timeout: int = 120,
+                 temperature: float = 0.3, max_tokens: int = 1500):
     """Create an LLMRouter with the given parameters."""
     from app.llm.router import LLMRouter
-    kwargs: dict = {"timeout": timeout}
+    kwargs: dict = {"timeout": timeout, "temperature": temperature, "max_tokens": max_tokens}
     if model:
         kwargs["model"] = model
     if provider == "ollama":
@@ -182,6 +183,7 @@ def show_settings_page():
             f"{t('settings_api_key')} Anthropic",
             value=settings.anthropic_api_key,
             type="password",
+            autocomplete="off",
             help=t("settings_api_key_help"),
         )
         model = st.selectbox(
@@ -194,6 +196,7 @@ def show_settings_page():
             f"{t('settings_api_key')} OpenAI",
             value=settings.openai_api_key,
             type="password",
+            autocomplete="off",
         )
         model = st.selectbox(t("settings_model"), ["gpt-4o", "gpt-4o-mini", "gpt-4.1-mini"])
 
@@ -202,6 +205,7 @@ def show_settings_page():
             f"{t('settings_api_key')} Google",
             value=settings.google_api_key,
             type="password",
+            autocomplete="off",
         )
         model = st.selectbox(
             t("settings_model"),
@@ -215,6 +219,7 @@ def show_settings_page():
         t("settings_hf_token"),
         value=settings.hf_token,
         type="password",
+        autocomplete="off",
         help=t("settings_hf_token_help"),
     )
 
@@ -231,9 +236,16 @@ def show_settings_page():
     )
     max_tokens = st.number_input(
         t("settings_max_tokens"),
-        min_value=512, max_value=8192,
-        value=st.session_state.get("max_tokens", settings.max_tokens),
+        min_value=512, max_value=4000,
+        value=min(4000, int(st.session_state.get("max_tokens", settings.max_tokens))),
         step=512,
+    )
+    daily_token_budget = st.number_input(
+        t("settings_daily_budget"),
+        min_value=1000,
+        max_value=10_000_000,
+        value=settings.daily_token_budget,
+        step=1000,
     )
 
     # ── Actions ───────────────────────────────────────────────────────────────
@@ -244,7 +256,15 @@ def show_settings_page():
         if st.button(t("settings_test_connection"), type="primary", use_container_width=True):
             with st.spinner(t("settings_testing")):
                 try:
-                    router = _init_router(provider, api_key, model, base_url, timeout)
+                    router = _init_router(
+                        provider,
+                        api_key,
+                        model,
+                        base_url,
+                        timeout,
+                        temperature,
+                        max_tokens,
+                    )
                     if router.test_connection():
                         st.success(t("settings_connection_ok"))
                         logger.info("Connection OK: provider=%s model=%s", provider, model)
@@ -279,6 +299,7 @@ def show_settings_page():
                 "llm_model": model,
                 "temperature": temperature,
                 "max_tokens": max_tokens,
+                "daily_token_budget": daily_token_budget,
                 "hf_token": hf_token,
             }
             if provider == "ollama":
@@ -329,6 +350,7 @@ def show_settings_page():
             "model (.env)": settings.llm_model,
             "ollama_url": settings.ollama_base_url,
             "embedding_model": settings.embedding_model,
+            "daily_token_budget": settings.daily_token_budget,
             "chroma_dir": str(CHROMA_PERSIST_DIR),
             "session_provider": st.session_state.get("llm_provider", "—"),
             "session_model": st.session_state.get("llm_model", "—"),

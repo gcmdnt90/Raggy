@@ -32,7 +32,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 def print_header():
     print("╔══════════════════════════════════════════════════╗")
-    print("║     Raggy — Setup Wizard v1.0                   ║")
+    print("║     Raggy — Setup Wizard v0.1.1                 ║")
     print("║     RAG-Powered Knowledge Assistant              ║")
     print("╚══════════════════════════════════════════════════╝")
     print()
@@ -51,7 +51,8 @@ def print_success():
     print("║                                                  ║")
     print("║  For the admin panel:                            ║")
     print("║    admin.bat               (Windows)             ║")
-    print("║    streamlit run app/admin.py --server.port 8502 ║")
+    print("║    streamlit run app/admin.py                    ║")
+    print("║      --server.address 127.0.0.1 --server.port 8502 ║")
     print("║                                                  ║")
     print("║  For CLI commands:                               ║")
     print("║    python -m scripts.manage --help               ║")
@@ -308,7 +309,11 @@ def _save_env(config: dict, password: str, hf_token: str = ""):
     """Save configuration to .env file."""
     from app.config import save_settings_to_env
 
-    updates = {"admin_password": password}
+    updates = {
+        "admin_password": password,
+        "max_tokens": 1500,
+        "daily_token_budget": 200000,
+    }
     if config.get("provider"):
         updates["llm_provider"] = config["provider"]
     if config.get("model"):

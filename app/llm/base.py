@@ -60,6 +60,10 @@ class LLMRateLimitError(LLMError):
     """Rate limit reached — used internally for retry."""
 
 
+class LLMBudgetExceededError(LLMError):
+    """Raised when the daily token budget is exhausted."""
+
+
 # ---------------------------------------------------------------------------
 # Retry decorator with exponential backoff
 # ---------------------------------------------------------------------------
@@ -105,7 +109,7 @@ class LLMProvider(ABC):
         model: str | None = None,
         timeout: int = 120,
         temperature: float = 0.3,
-        max_tokens: int = 4096,
+        max_tokens: int = 1500,
         **kwargs,
     ) -> None:
         self.api_key = api_key

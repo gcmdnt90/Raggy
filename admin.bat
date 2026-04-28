@@ -18,5 +18,5 @@ echo.
 echo  Admin Panel will open automatically in your browser at http://localhost:8502
 echo  Press CTRL+C to stop the server.
 echo.
-venv\Scripts\python.exe -m streamlit run app\admin.py --server.port 8502
+venv\Scripts\python.exe -m streamlit run app\admin.py --server.address 127.0.0.1 --server.port 8502
 pause

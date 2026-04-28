@@ -1,5 +1,5 @@
 """Document parsers for Raggy."""
 
-from app.parsers.documents import extract_text, list_supported_files
+from app.parsers.documents import ParsedDocument, extract_text, list_supported_files, load_document
 
-__all__ = ["extract_text", "list_supported_files"]
+__all__ = ["ParsedDocument", "extract_text", "list_supported_files", "load_document"]

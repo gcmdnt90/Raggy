@@ -16,6 +16,8 @@ sentence-transformers
 
 # PDF parsing
 pdfplumber
+python-docx
+openpyxl
 
 # Configuration
 python-dotenv

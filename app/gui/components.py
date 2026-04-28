@@ -2,6 +2,7 @@
 
 import streamlit as st
 from app.i18n import t
+from app.utils.token_budget import get_daily_budget, get_daily_usage, is_budget_exhausted
 
 
 def render_header():
@@ -19,6 +20,35 @@ def render_privacy_warning():
     provider = st.session_state.get("llm_provider", "")
     if provider in ("anthropic", "openai", "google"):
         st.warning(t("privacy_warning"))
+
+
+def _reset_conversation_state() -> None:
+    """Clear chat-related session state and pipeline memory."""
+    for key in (
+        "chat_messages",
+        "admin_chat_messages",
+        "pending_chat",
+        "pending_prompt",
+        "cached_analysis",
+        "analysis_cache",
+    ):
+        st.session_state.pop(key, None)
+    pipeline = st.session_state.get("pipeline")
+    memory = getattr(pipeline, "memory", None)
+    if memory and hasattr(memory, "clear"):
+        memory.clear()
+
+
+def render_budget_status() -> bool:
+    """Render the daily token budget status and return True if exhausted."""
+    used = get_daily_usage()
+    budget = get_daily_budget()
+    exhausted = is_budget_exhausted()
+    if exhausted:
+        st.error(t("budget_reached"))
+    else:
+        st.caption(t("budget_used", used=used, budget=budget))
+    return exhausted
 
 
 def render_sidebar():
@@ -44,6 +74,13 @@ def render_sidebar():
             st.warning(t("llm_not_configured"))
             st.caption(t("llm_go_settings"))
 
+        st.divider()
+
+        if st.button(t("reset_conversation"), use_container_width=True):
+            _reset_conversation_state()
+            st.rerun()
+
+        st.caption(t("budget_used", used=get_daily_usage(), budget=get_daily_budget()))
         st.divider()
         st.caption(t("version_label"))
 

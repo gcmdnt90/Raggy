@@ -18,12 +18,15 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "nav_chat": {"en": "Chat", "it": "Chat"},
     "nav_settings": {"en": "Settings", "it": "Impostazioni"},
     "nav_navigation": {"en": "Navigation", "it": "Navigazione"},
-    "version_label": {"en": "Raggy v1.0", "it": "Raggy v1.0"},
+    "version_label": {"en": "Raggy v0.1.1", "it": "Raggy v0.1.1"},
     "llm_not_configured": {"en": "LLM not configured", "it": "LLM non configurato"},
     "llm_go_settings": {
         "en": "Go to Settings to configure your LLM provider.",
         "it": "Vai su Impostazioni per configurare il provider LLM.",
     },
+    "reset_conversation": {"en": "Reset conversation", "it": "Reimposta conversazione"},
+    "budget_used": {"en": "Budget used: {used} / {budget} tokens", "it": "Budget usato: {used} / {budget} token"},
+    "budget_reached": {"en": "Budget reached, try again tomorrow.", "it": "Budget raggiunto, riprova domani."},
 
     # ── Chat ──────────────────────────────────────────────────────────────
     "chat_title": {"en": "Knowledge Assistant", "it": "Assistente Knowledge Base"},
@@ -89,6 +92,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "it": "Più basso = risposte più deterministiche. Più alto = più creative.",
     },
     "settings_max_tokens": {"en": "Max Tokens", "it": "Max Token"},
+    "settings_daily_budget": {"en": "Daily token budget", "it": "Budget token giornaliero"},
     "settings_test_connection": {"en": "🔌 Test Connection", "it": "🔌 Testa Connessione"},
     "settings_testing": {"en": "Testing...", "it": "Test in corso..."},
     "settings_connection_ok": {"en": "Connection successful!", "it": "Connessione riuscita!"},
@@ -152,7 +156,7 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
 
     # ── Admin KB ──────────────────────────────────────────────────────────
     "kb_title": {"en": "Knowledge Base Manager", "it": "Gestione Knowledge Base"},
-    "kb_docs_md": {"en": "MD Documents", "it": "Documenti MD"},
+    "kb_docs_md": {"en": "Documents", "it": "Documenti"},
     "kb_chunks_indexed": {"en": "Chunks indexed", "it": "Chunks indicizzati"},
     "kb_files_in_kb": {"en": "Files in Knowledge Base:", "it": "File nella Knowledge Base:"},
     "kb_upload_title": {"en": "Upload documents to KB:", "it": "Carica documenti nella KB:"},
@@ -174,6 +178,9 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "kb_deleted": {"en": "deleted.", "it": "eliminato."},
     "kb_close": {"en": "Close", "it": "Chiudi"},
     "kb_no_reindex_note": {"en": "Changes are not automatically re-indexed.", "it": "Le modifiche non vengono re-indicizzate automaticamente."},
+    "kb_unsupported_file": {"en": "Unsupported file type.", "it": "Tipo file non supportato."},
+    "kb_unsafe_path": {"en": "Unsafe upload path rejected.", "it": "Percorso di caricamento non sicuro rifiutato."},
+    "kb_upload_invalid": {"en": "Upload rejected", "it": "Caricamento rifiutato"},
 
     # ── Admin Prompts ─────────────────────────────────────────────────────
     "prompts_title": {"en": "System Prompt Editor", "it": "Editor System Prompt"},

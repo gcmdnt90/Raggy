@@ -2,6 +2,7 @@
 
 import logging
 import streamlit as st
+from secrets import compare_digest
 from pathlib import Path
 from app.config import get_settings, KB_ROOT, CHROMA_PERSIST_DIR, PROMPTS_DIR
 from app.i18n import t
@@ -15,11 +16,11 @@ def check_admin_auth() -> bool:
         return True
 
     st.title(t("admin_login_title"))
-    password = st.text_input(t("admin_password"), type="password")
+    password = st.text_input(t("admin_password"), type="password", autocomplete="off")
 
     if st.button(t("admin_login")):
         settings = get_settings()
-        if password == settings.admin_password:
+        if compare_digest(password, settings.admin_password):
             st.session_state["admin_authenticated"] = True
             st.rerun()
         else:
@@ -66,7 +67,7 @@ def admin_chatbot():
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    prompt = st.chat_input(t("chat_placeholder"))
+    prompt = st.chat_input(t("chat_placeholder"), max_chars=4000)
 
     if prompt:
         st.session_state.admin_chat_messages.append({"role": "user", "content": prompt})
@@ -150,7 +151,12 @@ def admin_kb_manager():
     # Stats
     col1, col2 = st.columns(2)
 
-    all_files = list(KB_ROOT.rglob("*.md")) + list(KB_ROOT.rglob("*.txt")) + list(KB_ROOT.rglob("*.pdf"))
+    from app.parsers.documents import SUPPORTED_EXTENSIONS
+
+    all_files = [
+        path for path in KB_ROOT.rglob("*")
+        if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS
+    ]
     # Exclude chroma_db and README
     kb_files = [f for f in all_files if "chroma_db" not in str(f)]
     col1.metric(t("kb_docs_md"), len(kb_files))
@@ -177,7 +183,7 @@ def admin_kb_manager():
     # Auto-discover categories (subdirectories)
     categories = sorted([
         d.name for d in KB_ROOT.iterdir()
-        if d.is_dir() and d.name not in ("chroma_db", "__pycache__")
+        if d.is_dir() and d.name not in ("chroma_db", "__pycache__", "prompts")
     ])
 
     for cat in categories:
@@ -288,7 +294,7 @@ def admin_kb_manager():
 
     # ── Upload ─────────────────────────────────────────────────────────────────
     st.write(f"**{t('kb_upload_title')}**")
-    uploaded = st.file_uploader(t("kb_upload_file"), type=["md", "txt", "pdf"])
+    uploaded = st.file_uploader(t("kb_upload_file"), type=["md", "txt", "pdf", "docx", "xlsx"])
 
     # Category selection: existing + create new
     existing_cats = categories if categories else []
@@ -299,11 +305,40 @@ def admin_kb_manager():
     if category == "+ New category":
         new_cat_name = st.text_input(t("kb_new_category"))
         category = new_cat_name.strip().lower().replace(" ", "_") if new_cat_name.strip() else ""
+    category = "".join(ch for ch in category if ch.isalnum() or ch in ("_", "-"))
 
     if uploaded and category and st.button(t("kb_add_btn")):
-        target = KB_ROOT / category / uploaded.name
+        safe_name = Path(uploaded.name).name
+        suffix = Path(safe_name).suffix.lower()
+        if suffix not in SUPPORTED_EXTENSIONS:
+            st.error(t("kb_unsupported_file"))
+            return
+        data = uploaded.getvalue()
+        try:
+            from app.utils.sanitize import (
+                validate_docx,
+                validate_pdf,
+                validate_text_bytes,
+                validate_xlsx,
+            )
+            if suffix in (".md", ".txt"):
+                validate_text_bytes(data)
+            elif suffix == ".pdf":
+                validate_pdf(data)
+            elif suffix == ".docx":
+                validate_docx(data)
+            elif suffix == ".xlsx":
+                validate_xlsx(data)
+        except Exception as exc:
+            st.error(f"{t('kb_upload_invalid')}: {exc}")
+            return
+        target_dir = (KB_ROOT / category).resolve()
+        target = (target_dir / safe_name).resolve()
+        if KB_ROOT.resolve() not in target.parents:
+            st.error(t("kb_unsafe_path"))
+            return
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(uploaded.getvalue())
+        target.write_bytes(data)
         st.success(f"'{uploaded.name}' {t('kb_added')} '{category}'")
 
     st.divider()
@@ -311,6 +346,11 @@ def admin_kb_manager():
     # Reindex
     if st.button(t("kb_reindex_btn"), type="primary"):
         with st.spinner(t("kb_reindexing")):
+            # Release ChromaDB file locks before rebuild can delete the DB
+            from app.rag.retriever import close_chroma_clients
+            close_chroma_clients()
+            import gc; gc.collect()
+
             import sys
             sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
             from scripts.ingest_kb import main as ingest_main

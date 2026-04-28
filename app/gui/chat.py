@@ -3,7 +3,7 @@
 import logging
 
 import streamlit as st
-from app.gui.components import render_privacy_warning
+from app.gui.components import render_budget_status, render_privacy_warning
 from app.i18n import t
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,7 @@ def show_chatbot_page():
     pipeline = _get_pipeline()
     if not pipeline:
         st.warning(t("chat_configure_llm"))
+    budget_exhausted = render_budget_status()
 
     # Init chat history
     if "chat_messages" not in st.session_state:
@@ -53,10 +54,14 @@ def show_chatbot_page():
             st.markdown(msg["content"])
 
     # Accept input
-    typed_prompt = st.chat_input(t("chat_placeholder"))
+    typed_prompt = st.chat_input(
+        t("chat_placeholder"),
+        max_chars=4000,
+        disabled=budget_exhausted,
+    )
     prompt = typed_prompt or pending_prompt
 
-    if prompt:
+    if prompt and not budget_exhausted:
         st.session_state.chat_messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)

@@ -1,97 +1,71 @@
-# Raggy — RAG-Powered Knowledge Assistant
+# Raggy - RAG-Powered Knowledge Assistant
 
-A modular, self-hosted **Retrieval-Augmented Generation** chatbot that lets you build a custom knowledge base and query it using LLMs — locally with Ollama or via cloud APIs (Anthropic, OpenAI, Google).
+A modular, self-hosted **Retrieval-Augmented Generation** chatbot that lets you build a custom knowledge base and query it using LLMs, locally with Ollama or via cloud APIs (Anthropic, OpenAI, Google).
 
 ## Features
 
-- 🧠 **RAG Chatbot** — Ask questions and get answers grounded in your documents
-- 📚 **Knowledge Base Manager** — Upload, organize, and index `.md`, `.txt`, `.pdf` files
-- 🔌 **Multi-provider LLM** — Supports Ollama (local), Anthropic (Claude), OpenAI (GPT), Google (Gemini)
-- 🤖 **Automatic Ollama Setup** — Detects your hardware, recommends models, installs Ollama automatically
-- 🛡️ **Admin Panel** — Manage prompts, KB, settings, and view usage logs
-- 🌐 **Multilingual UI** — English (default) and Italian, switchable in Settings
-- 💾 **Persistent Config** — Settings saved to `.env`, survives restarts
+- **RAG Chatbot** - Ask questions and get answers grounded in your documents.
+- **Knowledge Base Manager** - Upload, organize, and index `.md`, `.txt`, `.pdf`, `.docx`, and `.xlsx` files.
+- **Safety guards** - Input sanitization, prompt-injection spotlighting, document validation, and daily token budgets.
+- **Multi-provider LLM** - Supports Ollama (local), Anthropic (Claude), OpenAI (GPT), and Google (Gemini).
+- **Automatic Ollama Setup** - Detects your hardware, recommends models, and installs Ollama automatically.
+- **Admin Panel** - Manage prompts, KB, settings, and usage logs.
+- **Multilingual UI** - English (default) and Italian, switchable in Settings.
+- **Persistent Config** - Settings saved to `.env`, surviving restarts.
 
 ## Quick Start
 
 ### Windows
-```
+
+```bat
 start.bat
 ```
+
 This will:
-1. Create a Python virtual environment
-2. Install dependencies
-3. Run the setup wizard (first time only)
-4. Open Raggy in your browser at `http://localhost:8501`
+
+1. Create a Python virtual environment.
+2. Install dependencies.
+3. Run the setup wizard on first launch.
+4. Open Raggy in your browser at `http://localhost:8501`.
 
 ### Manual
+
 ```bash
 python -m venv venv
-venv\Scripts\activate      # Windows
-source venv/bin/activate   # Linux/Mac
+venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
 streamlit run app/main.py
 ```
 
 ### Admin Panel
-```
+
+```bat
 admin.bat
 ```
-Or: `streamlit run app/admin.py --server.port 8502`
 
-## Project Structure
+Or:
 
+```bash
+streamlit run app/admin.py --server.address 127.0.0.1 --server.port 8502
 ```
-Raggy/
-├── app/
-│   ├── main.py              # Streamlit user app
-│   ├── admin.py             # Streamlit admin panel
-│   ├── config.py            # Pydantic settings from .env
-│   ├── i18n.py              # Internationalization (EN/IT)
-│   ├── gui/
-│   │   ├── components.py    # Shared UI components
-│   │   ├── chat.py          # Chatbot page
-│   │   ├── settings.py      # Settings page
-│   │   └── admin_panel.py   # Admin sections
-│   ├── llm/
-│   │   ├── base.py          # LLM abstractions
-│   │   ├── router.py        # Provider routing
-│   │   ├── ollama_setup.py  # Auto-install & model recommender
-│   │   ├── providers/       # Anthropic, OpenAI, Google, Ollama
-│   │   └── prompts/         # System prompt management
-│   ├── rag/
-│   │   ├── pipeline.py      # RAG orchestration
-│   │   ├── retriever.py     # ChromaDB retriever
-│   │   ├── embeddings.py    # Embedding management
-│   │   └── memory.py        # Conversation memory
-│   ├── parsers/
-│   │   └── documents.py     # Generic document parser
-│   └── utils/
-│       ├── logger.py        # Interaction logging
-│       └── logging_config.py
-├── knowledge_base/           # Your documents go here
-├── scripts/
-│   ├── setup_wizard.py      # Guided first-run setup
-│   ├── ingest_kb.py         # KB indexing script
-│   └── manage.py            # CLI management tool
-├── start.bat                 # Windows launcher
-├── admin.bat                 # Windows admin launcher
-├── requirements.txt
-└── .env                      # Configuration (auto-generated)
-```
+
+## Configuration
+
+Copy `.env.example` to `.env` and set the provider values you need. `MAX_TOKENS` defaults to `1500` and is capped at `4000`; `DAILY_TOKEN_BUDGET` defaults to `200000`.
 
 ## CLI
 
 ```bash
-python -m scripts.manage status           # System status
-python -m scripts.manage reindex          # Re-index KB
-python -m scripts.manage provider list    # List providers
-python -m scripts.manage provider set X   # Switch provider
-python -m scripts.manage ollama list      # List Ollama models
-python -m scripts.manage ollama pull X    # Download model
-python -m scripts.manage ollama recommend # Get model recommendations
-python -m scripts.manage start            # Start Raggy
-python -m scripts.manage start --admin    # Start admin panel
+python -m scripts.manage status
+python -m scripts.manage reindex
+python -m scripts.manage provider list
+python -m scripts.manage provider set X
+python -m scripts.manage ollama list
+python -m scripts.manage ollama pull X
+python -m scripts.manage ollama recommend
+python -m scripts.manage start
+python -m scripts.manage start --admin
 ```
 
 ## License

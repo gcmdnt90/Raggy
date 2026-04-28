@@ -1,30 +1,29 @@
 #!/bin/bash
-echo "🚀 Avvio EcoMeter..."
-cd "$(dirname "$0")/.."
+# Raggy — Start script (Linux/Mac)
 
-# Verifica Python3
-if ! command -v python3 &> /dev/null; then
-    echo "❌ Python3 non trovato"
-    exit 1
-fi
+echo "🚀 Starting Raggy..."
 
-VENV_PYTHON="venv/bin/python"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Crea venv locale se non esiste
+cd "$ROOT"
+
+# Create venv if needed
 if [ ! -d "venv" ]; then
-    echo "📦 Creazione ambiente virtuale locale..."
+    echo "Creating virtual environment..."
     python3 -m venv venv
-    echo "📦 Installazione dipendenze nel venv locale..."
-    venv/bin/python -m pip install --upgrade pip -q
-    venv/bin/python -m pip install -r requirements.txt
+    source venv/bin/activate
+    pip install --upgrade pip -q
+    pip install -r requirements.txt
+else
+    source venv/bin/activate
 fi
 
-# Verifica KB
+# First run — setup wizard
 if [ ! -d "knowledge_base/chroma_db" ]; then
-    echo "📚 Prima esecuzione: avvio setup wizard..."
-    "$VENV_PYTHON" scripts/setup_wizard.py
+    echo "First run: starting setup wizard..."
+    python scripts/setup_wizard.py
 fi
 
-# Avvia con il Python del venv
-echo "🌐 Avvio EcoMeter su http://localhost:8501"
-"$VENV_PYTHON" -m streamlit run app/main.py
+echo "🌐 Starting Raggy at http://localhost:8501"
+python -m streamlit run app/main.py

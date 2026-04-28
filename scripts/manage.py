@@ -54,7 +54,11 @@ def cmd_status():
 
     # KB documents
     kb_root = PROJECT_ROOT / "knowledge_base"
-    all_files = list(kb_root.rglob("*.md")) + list(kb_root.rglob("*.txt")) + list(kb_root.rglob("*.pdf"))
+    from app.parsers.documents import SUPPORTED_EXTENSIONS
+    all_files = [
+        path for path in kb_root.rglob("*")
+        if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS
+    ]
     kb_docs = [f for f in all_files if "chroma_db" not in str(f) and f.name != "README.md"]
     print(f"  KB documents:    {len(kb_docs)}")
 
@@ -191,7 +195,10 @@ def cmd_start(admin: bool = False):
     """Start Streamlit."""
     entry = "app/admin.py" if admin else "app/main.py"
     print(f"🚀 Starting Raggy ({'Admin' if admin else 'User'})...")
-    subprocess.run([sys.executable, "-m", "streamlit", "run", entry])
+    args = [sys.executable, "-m", "streamlit", "run", entry]
+    if admin:
+        args.extend(["--server.address", "127.0.0.1", "--server.port", "8502"])
+    subprocess.run(args)
 
 
 def main():
