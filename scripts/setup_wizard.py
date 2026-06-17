@@ -215,13 +215,17 @@ def step_configure_llm(deps: dict) -> dict:
 
 
 def _test_api_key(provider: str, api_key: str) -> bool:
-    """Quick connection test."""
+    """Quick connection test using the current default model for the provider."""
+    from app.llm.providers import model_catalog
+
+    fallback = model_catalog.fallback(provider)
+    test_model = fallback[0] if fallback else ""
     try:
         if provider == "anthropic":
             import anthropic
             client = anthropic.Anthropic(api_key=api_key)
             client.messages.create(
-                model="claude-sonnet-4-20250514", max_tokens=10,
+                model=test_model, max_tokens=10,
                 messages=[{"role": "user", "content": "test"}],
             )
             return True
@@ -229,14 +233,14 @@ def _test_api_key(provider: str, api_key: str) -> bool:
             import openai
             client = openai.OpenAI(api_key=api_key)
             client.chat.completions.create(
-                model="gpt-4o-mini", max_tokens=10,
+                model=test_model, max_tokens=10,
                 messages=[{"role": "user", "content": "test"}],
             )
             return True
         elif provider == "google":
             import google.generativeai as genai
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-2.0-flash")
+            model = genai.GenerativeModel(test_model)
             model.generate_content("test")
             return True
     except Exception:

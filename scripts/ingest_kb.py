@@ -128,33 +128,27 @@ def create_embeddings_and_index(chunks: list[dict], rebuild: bool = False):
 
     persist_dir = str(CHROMA_PERSIST_DIR)
 
-    if rebuild and CHROMA_PERSIST_DIR.exists():
-        import shutil
+    if rebuild:
         # Release any cached ChromaDB client connections (SQLite locks)
         from app.rag.retriever import close_chroma_clients
         close_chroma_clients()
-        import gc; gc.collect()          # help release lingering refs
-        shutil.rmtree(persist_dir)
-        print("  🗑️  Previous database deleted")
+        import gc
+        gc.collect()
 
     client = chromadb.PersistentClient(path=persist_dir)
 
     collection_name = "raggy_kb"
-    try:
-        if rebuild:
-            try:
-                client.delete_collection(collection_name)
-            except Exception:
-                pass
-        collection = client.get_or_create_collection(
-            name=collection_name,
-            metadata={"hnsw:space": "cosine"},
-        )
-    except Exception:
-        collection = client.get_or_create_collection(
-            name=collection_name,
-            metadata={"hnsw:space": "cosine"},
-        )
+    if rebuild:
+        try:
+            client.delete_collection(collection_name)
+            print("  Previous collection deleted")
+        except Exception:
+            pass
+
+    collection = client.get_or_create_collection(
+        name=collection_name,
+        metadata={"hnsw:space": "cosine"},
+    )
 
     # Load embedding model
     settings = get_settings()

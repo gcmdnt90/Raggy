@@ -10,17 +10,16 @@ from app.llm.base import (
     LLMAuthenticationError, LLMConnectionError,
     LLMModelNotFoundError, LLMTimeoutError,
 )
+from app.llm.providers import model_catalog
 
 logger = logging.getLogger(__name__)
-
-_MODELS: list[str] = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"]
 
 
 class GoogleProvider(LLMProvider):
     """Provider for Google Generative AI (Gemini)."""
 
     provider_name: str = "google"
-    default_model: str = "gemini-2.0-flash"
+    default_model: str = "gemini-2.5-flash"
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -33,8 +32,20 @@ class GoogleProvider(LLMProvider):
         genai.configure(api_key=self.api_key)
         self._genai = genai
 
+    def _fetch_models(self) -> list[str]:
+        """Query the Gemini API for models that support text generation."""
+        out: list[str] = []
+        for m in self._genai.list_models():
+            methods = getattr(m, "supported_generation_methods", []) or []
+            if "generateContent" in methods:
+                name = m.name.split("/")[-1]
+                if name.startswith("gemini"):
+                    out.append(name)
+        return out
+
     def available_models(self) -> list[str]:
-        return list(_MODELS)
+        """Live model list from the API, with a static fallback when offline."""
+        return model_catalog.discover(self.provider_name, self._fetch_models)
 
     def generate(self, messages: list[LLMMessage], *, model: str | None = None,
                  temperature: float | None = None, max_tokens: int | None = None) -> LLMResponse:

@@ -162,8 +162,9 @@ def admin_kb_manager():
     col1.metric(t("kb_docs_md"), len(kb_files))
 
     try:
-        import chromadb
-        client = chromadb.PersistentClient(path=str(CHROMA_PERSIST_DIR))
+        from app.rag.retriever import get_chroma_client
+
+        client = get_chroma_client(str(CHROMA_PERSIST_DIR))
         coll = client.get_collection("raggy_kb")
         col2.metric(t("kb_chunks_indexed"), coll.count())
     except Exception:
@@ -346,7 +347,9 @@ def admin_kb_manager():
     # Reindex
     if st.button(t("kb_reindex_btn"), type="primary"):
         with st.spinner(t("kb_reindexing")):
-            # Release ChromaDB file locks before rebuild can delete the DB
+            st.session_state.pop("pipeline", None)
+
+            # Release ChromaDB file locks before replacing the collection.
             from app.rag.retriever import close_chroma_clients
             close_chroma_clients()
             import gc; gc.collect()
@@ -355,6 +358,7 @@ def admin_kb_manager():
             sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
             from scripts.ingest_kb import main as ingest_main
             ingest_main(rebuild=True)
+            st.session_state.pop("pipeline", None)
         st.success(t("kb_reindexed"))
 
 

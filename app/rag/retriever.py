@@ -25,7 +25,11 @@ def get_chroma_client(path: str | None = None):
     resolved = path or str(CHROMA_PERSIST_DIR)
     if resolved not in _chroma_client_cache:
         logger.debug("Creating ChromaDB PersistentClient: %s", resolved)
-        _chroma_client_cache[resolved] = chromadb.PersistentClient(path=resolved)
+        try:
+            _chroma_client_cache[resolved] = chromadb.PersistentClient(path=resolved)
+        except (AttributeError, ValueError):
+            _clear_chroma_system_cache()
+            _chroma_client_cache[resolved] = chromadb.PersistentClient(path=resolved)
     return _chroma_client_cache[resolved]
 
 
@@ -33,15 +37,25 @@ def close_chroma_clients():
     """Close all cached ChromaDB clients, releasing file locks (e.g. SQLite)."""
     for path, client in list(_chroma_client_cache.items()):
         try:
-            # PersistentClient wraps an internal _server; closing it releases the DB.
-            if hasattr(client, "_server") and hasattr(client._server, "stop"):
-                client._server.stop()
-            elif hasattr(client, "close"):
+            if hasattr(client, "close"):
                 client.close()
+            elif hasattr(client, "_server") and hasattr(client._server, "stop"):
+                client._server.stop()
         except Exception:
             logger.debug("Failed to close ChromaDB client for %s", path, exc_info=True)
     _chroma_client_cache.clear()
+    _clear_chroma_system_cache()
     logger.debug("All cached ChromaDB clients closed.")
+
+
+def _clear_chroma_system_cache() -> None:
+    """Clear Chroma's process-wide shared system cache after closing clients."""
+    try:
+        from chromadb.api.shared_system_client import SharedSystemClient
+
+        SharedSystemClient.clear_system_cache()
+    except Exception:
+        logger.debug("Failed to clear ChromaDB shared system cache", exc_info=True)
 
 
 @dataclass

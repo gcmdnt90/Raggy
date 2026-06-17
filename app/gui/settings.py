@@ -62,6 +62,27 @@ def _get_ollama_models(base_url: str) -> list[str]:
     return []
 
 
+def _get_api_models(provider: str, api_key: str) -> tuple[list[str], bool]:
+    """Return (models, live) for an API provider.
+
+    Attempts a live query against the provider when an API key is present;
+    falls back to the curated static list otherwise. ``live`` is True only when
+    the list came from the provider's API.
+    """
+    from app.llm.providers import model_catalog
+
+    if api_key:
+        try:
+            from app.llm.router import LLMRouter
+            router = LLMRouter(provider, api_key=api_key, timeout=10)
+            models = router.available_models()
+            if models:
+                return models, True
+        except Exception:
+            logger.debug("Live model fetch failed for %s", provider, exc_info=True)
+    return model_catalog.fallback(provider), False
+
+
 def _show_ollama_setup():
     """Show Ollama installation and model recommendation section."""
     from app.llm.ollama_setup import is_ollama_installed, install_ollama, get_system_info, recommend_models
@@ -178,38 +199,33 @@ def show_settings_page():
             help=t("settings_timeout_help"),
         )
 
-    elif provider == "anthropic":
+    elif provider in ("anthropic", "openai", "google"):
+        _provider_labels = {"anthropic": "Anthropic", "openai": "OpenAI", "google": "Google"}
         api_key = st.text_input(
-            f"{t('settings_api_key')} Anthropic",
-            value=settings.anthropic_api_key,
+            f"{t('settings_api_key')} {_provider_labels[provider]}",
+            value=getattr(settings, f"{provider}_api_key"),
             type="password",
             autocomplete="off",
             help=t("settings_api_key_help"),
         )
+
+        # Refresh button clears the cached live list before re-querying.
+        if st.button(t("settings_models_refresh"), key=f"refresh_{provider}"):
+            from app.llm.providers import model_catalog
+            model_catalog.clear_cache(provider)
+            st.rerun()
+
+        models, live = _get_api_models(provider, api_key)
+        if live:
+            st.success(f"{t('settings_models_live')} — {len(models)}")
+        else:
+            st.caption(t("settings_models_fallback"))
+
+        default_model = settings.llm_model if settings.llm_model in models else models[0]
         model = st.selectbox(
             t("settings_model"),
-            ["claude-sonnet-4-20250514", "claude-opus-4-6", "claude-haiku-4-5-20251001"],
-        )
-
-    elif provider == "openai":
-        api_key = st.text_input(
-            f"{t('settings_api_key')} OpenAI",
-            value=settings.openai_api_key,
-            type="password",
-            autocomplete="off",
-        )
-        model = st.selectbox(t("settings_model"), ["gpt-4o", "gpt-4o-mini", "gpt-4.1-mini"])
-
-    elif provider == "google":
-        api_key = st.text_input(
-            f"{t('settings_api_key')} Google",
-            value=settings.google_api_key,
-            type="password",
-            autocomplete="off",
-        )
-        model = st.selectbox(
-            t("settings_model"),
-            ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"],
+            models,
+            index=models.index(default_model),
         )
 
     # ── Hugging Face token ────────────────────────────────────────────────────

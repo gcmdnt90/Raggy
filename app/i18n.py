@@ -79,6 +79,15 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "it": "La chiave viene salvata in .env solo se premi 'Salva come Default'.",
     },
     "settings_model": {"en": "Model", "it": "Modello"},
+    "settings_models_live": {
+        "en": "Live model list from provider",
+        "it": "Lista modelli aggiornata dal provider",
+    },
+    "settings_models_fallback": {
+        "en": "Showing built-in list — enter a valid API key to load the live model list.",
+        "it": "Mostro la lista integrata — inserisci una chiave API valida per caricare i modelli aggiornati.",
+    },
+    "settings_models_refresh": {"en": "Refresh model list", "it": "Aggiorna lista modelli"},
     "settings_embedding_title": {"en": "Embedding Model (local)", "it": "Modello Embedding (locale)"},
     "settings_hf_token": {"en": "Hugging Face Token (optional)", "it": "Token Hugging Face (opzionale)"},
     "settings_hf_token_help": {

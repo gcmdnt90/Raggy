@@ -5,10 +5,12 @@ from __future__ import annotations
 import sqlite3
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 from app.config import LOG_DIR, get_settings
-from app.llm.base import LLMMessage
+
+if TYPE_CHECKING:
+    from app.llm.base import LLMMessage
 
 DB_PATH = LOG_DIR / "tokens.db"
 

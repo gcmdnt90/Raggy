@@ -11,21 +11,16 @@ from app.llm.base import (
     LLMModelNotFoundError, LLMRateLimitError,
     LLMTimeoutError, retry_with_backoff,
 )
+from app.llm.providers import model_catalog
 
 logger = logging.getLogger(__name__)
-
-_MODELS: list[str] = [
-    "claude-sonnet-4-20250514",
-    "claude-opus-4-6",
-    "claude-haiku-4-5-20251001",
-]
 
 
 class AnthropicProvider(LLMProvider):
     """Provider for the Anthropic Messages API."""
 
     provider_name: str = "anthropic"
-    default_model: str = "claude-sonnet-4-20250514"
+    default_model: str = "claude-sonnet-4-6"
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -50,8 +45,14 @@ class AnthropicProvider(LLMProvider):
                 chat_msgs.append({"role": msg.role, "content": msg.content})
         return system_text, chat_msgs
 
+    def _fetch_models(self) -> list[str]:
+        """Query the Anthropic API for the currently available Claude models."""
+        page = self._client.models.list(limit=1000)
+        return [m.id for m in page.data if m.id.startswith("claude")]
+
     def available_models(self) -> list[str]:
-        return list(_MODELS)
+        """Live model list from the API, with a static fallback when offline."""
+        return model_catalog.discover(self.provider_name, self._fetch_models)
 
     @retry_with_backoff(max_attempts=3)
     def generate(self, messages: list[LLMMessage], *, model: str | None = None,
