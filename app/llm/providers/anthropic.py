@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Iterator
 
 from app.llm.base import (
@@ -14,6 +15,23 @@ from app.llm.base import (
 from app.llm.providers import model_catalog
 
 logger = logging.getLogger(__name__)
+
+
+def _supports_temperature(model: str) -> bool:
+    """Return whether ``model`` accepts a non-default temperature.
+
+    Anthropic removed sampling parameters from models released after Claude
+    Opus 4.6. Canonical model IDs from the 4.6 generation onward put the
+    family before the numeric version (for example, ``claude-opus-4-8``).
+    Older IDs use a different shape and continue to support temperature.
+    """
+    match = re.match(r"^claude-([a-z]+)-(\d+)(?:-(\d+))?(?:-|$)", model)
+    if not match:
+        return True
+
+    family, major_text, minor_text = match.groups()
+    version = (int(major_text), int(minor_text or 0))
+    return version < (5, 0) and not (family == "opus" and version > (4, 6))
 
 
 class AnthropicProvider(LLMProvider):
@@ -63,8 +81,9 @@ class AnthropicProvider(LLMProvider):
         kwargs: dict = {
             "model": target_model, "messages": chat_msgs,
             "max_tokens": max_tokens or self.max_tokens,
-            "temperature": temperature if temperature is not None else self.temperature,
         }
+        if _supports_temperature(target_model):
+            kwargs["temperature"] = temperature if temperature is not None else self.temperature
         if system_text:
             kwargs["system"] = system_text
         try:
@@ -93,8 +112,9 @@ class AnthropicProvider(LLMProvider):
         kwargs: dict = {
             "model": target_model, "messages": chat_msgs,
             "max_tokens": max_tokens or self.max_tokens,
-            "temperature": temperature if temperature is not None else self.temperature,
         }
+        if _supports_temperature(target_model):
+            kwargs["temperature"] = temperature if temperature is not None else self.temperature
         if system_text:
             kwargs["system"] = system_text
         try:

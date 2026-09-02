@@ -1,5 +1,8 @@
 """Tests for sanitization and validation helpers."""
 
+import io
+import zipfile
+
 import pytest
 
 from app.utils import sanitize
@@ -44,3 +47,31 @@ def test_validate_docx_rejects_bad_magic():
 def test_validate_xlsx_rejects_bad_magic():
     with pytest.raises(ValueError, match="magic"):
         sanitize.validate_xlsx(b"not xlsx")
+
+
+def _docx_with_member(name: str, payload: bytes) -> bytes:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(
+            "[Content_Types].xml",
+            '<Types><Override ContentType="application/vnd.openxmlformats-'
+            'officedocument.wordprocessingml.document.main+xml"/></Types>',
+        )
+        archive.writestr("word/document.xml", "<w:document/>")
+        archive.writestr(name, payload)
+    return buffer.getvalue()
+
+
+def test_validate_docx_rejects_excessive_uncompressed_size(monkeypatch):
+    monkeypatch.setattr(sanitize, "OOXML_MAX_UNCOMPRESSED_BYTES", 128, raising=False)
+    data = _docx_with_member("word/media/bomb.bin", b"A" * 1024)
+
+    with pytest.raises(ValueError, match="uncompressed"):
+        sanitize.validate_docx(data)
+
+
+def test_validate_docx_rejects_unsafe_member_path():
+    data = _docx_with_member("../outside.bin", b"payload")
+
+    with pytest.raises(ValueError, match="unsafe member path"):
+        sanitize.validate_docx(data)
