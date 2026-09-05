@@ -1,0 +1,20 @@
+{
+  "commessa": "CEL-39",
+  "macchina": "Cella di asservimento torni",
+  "software": "PLC/HMI V3.7.4, consegnato a inizio settimana",
+  "specifica_di_prova": "SPC-2026-082",
+  "revisione_specifica": null,
+  "tipo_collaudo": null,
+  "prove_eseguite": 10,
+  "prove_totali": 12,
+  "prova_9": "fine corsa asse Z: non superata, ripetuta e superata al secondo tentativo",
+  "prova_12": "ciclo continuo 2 h: interrotta dopo 40 minuti, causa non annotata",
+  "codice_articolo_plc": null,
+  "blocco_libreria": "MC_MoveAbsolute (PLCopen)",
+  "tempo_ciclo_s": 17.5,
+  "tempo_ciclo_contratto_s": 17.8,
+  "funzione_sicurezza_porta": "verificata a vista dall'operatore",
+  "punti_aperti": "2, categoria non annotata",
+  "firma_cliente": "il capo reparto è andato via prima della fine",
+  "esito_complessivo": null
+}

@@ -79,15 +79,23 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "it": "La chiave viene salvata in .env solo se premi 'Salva come Default'.",
     },
     "settings_model": {"en": "Model", "it": "Modello"},
+    "settings_model_help": {
+        "en": "Choose a catalog model or type an exact provider model ID.",
+        "it": "Scegli un modello dal catalogo o inserisci l'ID esatto del provider.",
+    },
     "settings_models_live": {
         "en": "Live model list from provider",
         "it": "Lista modelli aggiornata dal provider",
     },
     "settings_models_fallback": {
-        "en": "Showing built-in list — enter a valid API key to load the live model list.",
-        "it": "Mostro la lista integrata — inserisci una chiave API valida per caricare i modelli aggiornati.",
+        "en": "Showing the built-in catalog. Enter a valid API key and refresh for the live list.",
+        "it": "Catalogo integrato. Inserisci una chiave API valida e aggiorna per la lista live.",
     },
     "settings_models_refresh": {"en": "Refresh model list", "it": "Aggiorna lista modelli"},
+    "settings_models_refresh_failed": {
+        "en": "Live catalog unavailable. Check the API key; the built-in catalog remains usable.",
+        "it": "Catalogo live non disponibile. Verifica la chiave API; il catalogo integrato resta utilizzabile.",
+    },
     "settings_embedding_title": {"en": "Embedding Model (local)", "it": "Modello Embedding (locale)"},
     "settings_hf_token": {"en": "Hugging Face Token (optional)", "it": "Token Hugging Face (opzionale)"},
     "settings_hf_token_help": {
@@ -168,6 +176,14 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "kb_docs_md": {"en": "Documents", "it": "Documenti"},
     "kb_chunks_indexed": {"en": "Chunks indexed", "it": "Chunks indicizzati"},
     "kb_files_in_kb": {"en": "Files in Knowledge Base:", "it": "File nella Knowledge Base:"},
+    "kb_files_none": {
+        "en": "No source files are present. Upload a document below or restore a missing indexed source.",
+        "it": "Nessun file sorgente presente. Carica un documento qui sotto o ripristina una sorgente indicizzata mancante.",
+    },
+    "kb_missing_sources": {
+        "en": "{count} indexed source file(s) are missing from disk. Re-upload them before re-indexing.",
+        "it": "{count} file sorgente indicizzati non sono presenti sul disco. Ricaricali prima di reindicizzare.",
+    },
     "kb_upload_title": {"en": "Upload documents to KB:", "it": "Carica documenti nella KB:"},
     "kb_upload_file": {"en": "Upload file", "it": "Carica file"},
     "kb_category": {"en": "Category", "it": "Categoria"},
@@ -179,6 +195,8 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "kb_reindexed": {"en": "Knowledge Base re-indexed!", "it": "Knowledge Base re-indicizzata!"},
     "kb_view": {"en": "View", "it": "Vedi"},
     "kb_edit": {"en": "Edit", "it": "Modifica"},
+    "kb_download": {"en": "Download original file", "it": "Scarica il file originale"},
+    "kb_view_error": {"en": "Could not read file", "it": "Impossibile leggere il file"},
     "kb_delete_confirm": {"en": "Permanently delete", "it": "Eliminare definitivamente"},
     "kb_delete_yes": {"en": "Yes, delete", "it": "Sì, elimina"},
     "kb_cancel": {"en": "Cancel", "it": "Annulla"},

@@ -1,0 +1,13 @@
+number,reference,denomination,authority,mint,metal,weight_g,diameter_mm,die_axis,grade,catalogue_ref,rarity,expected_demand,attribution_certain,operator
+1,ART-2026-001,Antoniniano,Gallieno,Mediolanum,Mistura,2.96,21.9,ore 6,SM-3,RIC V 263,R2 — molto rara,alta,True,M. Bernardi
+2,ART-2026-002,Sesterzio,NON DETERMINATO,NON DETERMINATO,Bronzo,24.88,30.6,ore 12,SM-3,NON DETERMINATO,NC — non comune,media,False,L. Fabbri
+3,ART-2026-003,Antoniniano,Gallieno,Mediolanum,Mistura,2.85,21.3,ore 12,SM-2,RIC V 307,C — comune,bassa,True,L. Fabbri
+4,ART-2026-004,Denario,Repubblica Romana,Roma,Argento,3.43,17.2,ore 12,SM-1,Crawford 133/9,NC — non comune,media,True,L. Fabbri
+5,ART-2026-005,Quattrino,Stato Pontificio,Roma,Rame,1.0,16.0,ore 6,SM-3,Muntoni 395,R — rara,media,True,L. Fabbri
+6,ART-2026-006,Antoniniano,Gallieno,Mediolanum,Mistura,3.15,21.8,ore 7,SM-1,RIC V 448,R — rara,bassa,True,M. Bernardi
+7,ART-2026-007,Ducato,Repubblica di Venezia,Venezia,Oro,3.45,19.2,ore 7,SM-3,Paolucci 413,C — comune,bassa,True,M. Bernardi
+8,ART-2026-008,Antoniniano,Gallieno,Mediolanum,Mistura,3.88,22.4,ore 1,SM-3,RIC V 405,R2 — molto rara,media,True,S. Zanetti
+9,ART-2026-009,Grosso,NON DETERMINATO,NON DETERMINATO,Argento,2.23,18.6,ore 12,SM-4,NON DETERMINATO,NC — non comune,bassa,False,S. Zanetti
+10,ART-2026-010,Solido,Valentiniano I,Treviri,Oro,4.32,20.3,ore 6,SM-3,RIC IX 260,R — rara,media,True,M. Bernardi
+11,ART-2026-011,Denario,Repubblica Romana,Roma,Argento,3.44,19.2,ore 12,SM-3,Crawford 422/9,R2 — molto rara,alta,True,S. Zanetti
+12,ART-2026-012,Follis,NON DETERMINATO,NON DETERMINATO,Bronzo,3.31,18.3,ore 6,SM-5,NON DETERMINATO,R2 — molto rara,alta,False,M. Bernardi

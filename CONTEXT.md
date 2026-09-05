@@ -1,27 +1,55 @@
-# Raggy context
+# Banco context
 
-Raggy is a self-hosted Retrieval-Augmented Generation assistant. It parses a
-local knowledge base, creates local vector embeddings, retrieves relevant
-chunks, and sends a guarded prompt to one configured LLM provider.
+Banco is the demonstration harness for Workshop 1 of the AI Translator lesson.
+It runs the five demonstrations with the mechanism exposed, in one application,
+on one machine.
+
+Pedagogical vocabulary — **Banco**, **Replay**, **Data path**, **Tool category
+vs. delivery vehicle**, **Workshop 1 / 2**, **Sustained transfer** — is defined
+in the AI Translator repository's `CONTEXT.md` and is not restated here. This
+file covers only what is local to this codebase.
 
 ## Terms
 
-- **User app**: the chat-facing Streamlit application. It must not expose
-  credentials or administrative machine controls.
-- **Admin app**: the authenticated, loopback-only Streamlit application for
-  configuration, prompt editing, indexing, and operational logs.
-- **Knowledge base (KB)**: private source documents under `knowledge_base/`.
-- **Vector store**: an embedded, on-disk index derived from the KB. It is
-  rebuildable and must not expose a network service.
-- **Provider credential**: an API key or token stored only in `.env` and never
-  returned to a browser or written to logs.
-- **Reindex**: rebuild the vector store from the current KB documents.
+- **Harness**: the chat-facing application (`app/main.py`, `start.bat`). It is a
+  **projected surface** — everything it renders is on a screen in front of a
+  client's staff.
+- **Stage console**: the authenticated, loopback-only application
+  (`app/admin.py`, `admin.bat`) used for pre-flight, configuration, prompt
+  inspection, indexing and logs. Never projected.
+- **Demo**: one of D1–D5. Has a *shape* (varianza, giudizio, scala, costruzione,
+  attacco) and a mechanism it teaches. Two demos with the same shape is a bug.
+- **Beat**: one prompt inside a demo, identified as `m<demo>-p<n>`. The unit that
+  runs, records and replays.
+- **Dead branch**: a beat deliberately shown to fail or to lead nowhere, marked
+  in the database and announced as dead only *after* it runs.
+- **Demo database**: `demo/demo-prompts.json` — prompt text, sectors,
+  placeholders and, in Banco, machine-readable `run` blocks. Vendored from the
+  deck at the commit in `demo/DECK-PIN.txt`.
+- **Sector**: `numismatica` / `fotovoltaico` / `automazione`. Chosen once; drives
+  every prompt, placeholder and folder.
+- **Chain**: the five handover files `d1-bozze.md` … `d5-verifiche-umane.md`.
+  Each demo consumes the previous demo's output.
+- **Recording**: a captured real run of a beat, replayable. Not a fixture, not a
+  mock — a recording of something a model actually produced.
+- **Model source**: one configured way to get a completion — an API provider or a
+  local Ollama model. At least one required; two recommended.
+- **Profile**: `classroom` / `take-home` / `offline` — the one first-run choice
+  that determines which beats run live and which replay.
+- **Egress indicator**: the persistent display of where each request went. It is
+  the instrument for the cloud-vs-local threshold-concept family, not decoration.
 
-## Security invariants
+## Invariants
 
-- Default network binding is loopback.
-- Administrative operations require authentication.
-- Secrets are accepted as write-only values and are redacted from logs.
-- Uploaded archives are bounded by compressed and decompressed size.
-- Dependency resolution is locked and tested before updates are accepted.
-
+- The harness never renders a credential, a client name, a ground-truth file, or
+  a trainer note. (Extends Raggy's original rule that the user app must not
+  expose credentials or administrative controls.)
+- The stage console requires authentication and binds to loopback.
+- Secrets are write-only values, redacted from logs, and live only in `.env`.
+- The vector store is embedded and on disk; it is never exposed as a network
+  service.
+- Every model call displays its destination.
+- Output that no model produced is never displayed. Replay is announced.
+- A missing model source degrades a beat to replay; it never removes the beat.
+- Dependency resolution is locked and validated **from a clean checkout** before
+  a change is accepted.

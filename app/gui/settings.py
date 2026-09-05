@@ -62,25 +62,44 @@ def _get_ollama_models(base_url: str) -> list[str]:
     return []
 
 
-def _get_api_models(provider: str, api_key: str) -> tuple[list[str], bool]:
+def _get_api_models(
+    provider: str,
+    api_key: str,
+    *,
+    refresh: bool = False,
+) -> tuple[list[str], bool]:
     """Return (models, live) for an API provider.
 
-    Attempts a live query against the provider when an API key is present;
-    falls back to the curated static list otherwise. ``live`` is True only when
-    the list came from the provider's API.
+    Passive page renders use a cached or built-in catalog and never contact the
+    provider. A live query only occurs for an explicit refresh. ``live`` is
+    True only when the list came from the provider's API.
     """
     from app.llm.providers import model_catalog
 
+    cache_key = model_catalog.credential_cache_key(api_key) if api_key else None
+    cached = model_catalog.cached(provider, cache_key=cache_key)
+    if not refresh:
+        return cached or (model_catalog.fallback(provider), False)
+
     if api_key:
+        model_catalog.clear_cache(provider)
         try:
             from app.llm.router import LLMRouter
             router = LLMRouter(provider, api_key=api_key, timeout=10)
             models = router.available_models()
             if models:
-                return models, True
+                return models, model_catalog.is_live(provider, cache_key=cache_key)
         except Exception:
             logger.debug("Live model fetch failed for %s", provider, exc_info=True)
     return model_catalog.fallback(provider), False
+
+
+def _model_options(models: list[str], configured_model: str = "") -> list[str]:
+    """Return unique selector options while retaining a saved custom model."""
+    options = list(dict.fromkeys(models))
+    if configured_model and configured_model not in options:
+        options.insert(0, configured_model)
+    return options
 
 
 def _show_ollama_setup():
@@ -209,23 +228,28 @@ def show_settings_page():
             help=t("settings_api_key_help"),
         )
 
-        # Refresh button clears the cached live list before re-querying.
-        if st.button(t("settings_models_refresh"), key=f"refresh_{provider}"):
-            from app.llm.providers import model_catalog
-            model_catalog.clear_cache(provider)
-            st.rerun()
-
-        models, live = _get_api_models(provider, api_key)
+        refresh_catalog = st.button(
+            t("settings_models_refresh"),
+            key=f"refresh_{provider}",
+            disabled=not bool(api_key),
+        )
+        models, live = _get_api_models(provider, api_key, refresh=refresh_catalog)
         if live:
             st.success(f"{t('settings_models_live')} — {len(models)}")
+        elif refresh_catalog:
+            st.warning(t("settings_models_refresh_failed"))
         else:
             st.caption(t("settings_models_fallback"))
 
-        default_model = settings.llm_model if settings.llm_model in models else models[0]
+        configured_model = settings.llm_model if settings.llm_provider == provider else ""
+        model_options = _model_options(models, configured_model)
+        default_model = configured_model if configured_model else model_options[0]
         model = st.selectbox(
             t("settings_model"),
-            models,
-            index=models.index(default_model),
+            model_options,
+            index=model_options.index(default_model),
+            accept_new_options=True,
+            help=t("settings_model_help"),
         )
 
     # ── Hugging Face token ────────────────────────────────────────────────────

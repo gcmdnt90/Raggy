@@ -16,3 +16,26 @@ not backported to older snapshots.
 - Apply dependency updates through `update.bat` and retain them only after the
   automated tests and dependency audit pass.
 
+
+## Banco's second threat model
+
+Raggy's baseline above assumes a single self-hosted user. Banco is additionally
+**distributed to workshop participants** and, from milestone M5, **runs an agent
+that writes files on their machines**. That adds obligations Raggy does not have.
+
+- **Participant-supplied credentials.** Keys are pasted by non-technical people
+  who may be sharing a screen. They are write-only in the interface, stored only
+  in `.env`, redacted from logs, and never rendered by the harness.
+- **The harness is a projected surface.** Anything it renders is visible to a
+  room of a client's staff. No credential, client name, ground-truth file or
+  trainer note may appear there. Trainer-facing material belongs to the stage
+  console, which is loopback-only and authenticated.
+- **Agent file access is sandboxed to one folder**, chosen explicitly, with the
+  permission prompt shown on screen — it is teaching material, not friction to
+  be optimised away. No write outside the chosen folder, ever.
+- **Demonstration data is deliberately hostile.** `demo/data/<sector>/avvelenata/`
+  contains prompt-injection payloads by design. It must never be indexed, read or
+  executed outside the demonstration that calls for it.
+- **Clean-checkout validation is a security control here**, not just hygiene: an
+  undeclared dependency silently pulled from a developer's machine is a supply
+  chain the participant never agreed to.

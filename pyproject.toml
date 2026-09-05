@@ -3,15 +3,15 @@ requires = ["setuptools>=84,<85"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "raggy"
+name = "banco"
 version = "0.2.0"
-description = "Self-hosted RAG knowledge assistant"
+description = "Banco - the AI Translator Workshop 1 demonstration harness"
 readme = "README.md"
 requires-python = ">=3.10,<3.14"
 license = "Apache-2.0"
 dependencies = [
     "streamlit>=1.62,<2",
-    "qdrant-client>=1.19,<2",
+    "chromadb>=1.5.5,<2",
     "anthropic>=1.2,<2",
     "openai>=3.6,<4",
     "google-genai>=2.21,<3",

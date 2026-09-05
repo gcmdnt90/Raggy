@@ -45,7 +45,11 @@ class GoogleProvider(LLMProvider):
 
     def available_models(self) -> list[str]:
         """Live model list from the API, with a static fallback when offline."""
-        return model_catalog.discover(self.provider_name, self._fetch_models)
+        return model_catalog.discover(
+            self.provider_name,
+            self._fetch_models,
+            cache_key=model_catalog.credential_cache_key(self.api_key),
+        )
 
     def generate(self, messages: list[LLMMessage], *, model: str | None = None,
                  temperature: float | None = None, max_tokens: int | None = None) -> LLMResponse:
@@ -100,8 +104,8 @@ class GoogleProvider(LLMProvider):
         try:
             self.generate([LLMMessage(role="user", content="ping")], max_tokens=16)
             return True
-        except Exception:
-            logger.exception("Google connection test failed")
+        except Exception as exc:
+            logger.warning("Google connection test failed (%s)", type(exc).__name__)
             return False
 
     def embed(self, texts: list[str], *, model: str | None = None) -> list[list[float]]:

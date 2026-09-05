@@ -1,0 +1,13 @@
+number,reference,site,kwp,month,irradiation_kwh_m2,kwh,energy_fed_kwh,equivalent_hours,pr_percent,grade,downtime_days,production_loss_kwh,client_urgency,distance_km,reading_verified,operator
+1,RSM-2026-001,Tetto residenziale,39.0,agosto 2026,159.0,4758,1779,122.0,76.7,RG-3,4,341,alta,15,True,F. Guidi
+2,RSM-2026-002,Serra agricola,7.4,agosto 2026,176.7,811,511,109.6,62.0,RG-5,4,69,media,43,True,A. Renzi
+3,RSM-2026-003,Pensilina parcheggio,15.0,agosto 2026,165.3,1834,1182,122.3,74.0,RG-3,3,99,alta,42,True,S. Pari
+4,RSM-2026-004,Tetto condominio,9.2,agosto 2026,168.4,1209,799,131.5,78.1,RG-3,3,70,alta,46,False,A. Renzi
+5,RSM-2026-005,Serra agricola,24.9,agosto 2026,177.9,2821,1466,113.3,63.7,RG-5,4,297,alta,22,True,M. Casali
+6,RSM-2026-006,Copertura capannone,37.1,agosto 2026,180.0,4889,2264,131.8,73.2,RG-3,0,535,media,46,True,A. Renzi
+7,RSM-2026-007,Serra agricola,15.1,agosto 2026,182.2,1843,500,122.1,67.0,RG-4,1,293,media,33,True,A. Renzi
+8,RSM-2026-008,Copertura capannone,25.4,agosto 2026,165.0,2903,1884,114.3,69.3,RG-4,3,514,alta,23,False,S. Pari
+9,RSM-2026-009,Tetto residenziale,45.0,agosto 2026,170.3,4788,2689,106.4,62.5,RG-5,1,764,alta,24,True,F. Guidi
+10,RSM-2026-010,Tetto condominio,32.4,agosto 2026,171.3,4655,1501,143.7,83.9,RG-2,0,517,alta,20,True,S. Pari
+11,RSM-2026-011,Copertura capannone,19.8,agosto 2026,168.6,2977,1387,150.4,89.2,RG-1,0,67,alta,7,True,F. Guidi
+12,RSM-2026-012,Serra agricola,46.7,agosto 2026,182.3,7285,3479,156.0,85.6,RG-2,0,1255,bassa,48,True,M. Casali

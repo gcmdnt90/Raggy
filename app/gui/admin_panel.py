@@ -6,6 +6,7 @@ from secrets import compare_digest
 from pathlib import Path
 from app.config import get_settings, KB_ROOT, CHROMA_PERSIST_DIR, PROMPTS_DIR
 from app.i18n import t
+from app.kb_manager import file_groups, list_source_files, missing_indexed_sources
 
 logger = logging.getLogger(__name__)
 
@@ -148,25 +149,30 @@ def admin_kb_manager():
     """Section: Knowledge Base Manager with upload wizard."""
     st.subheader(t("kb_title"))
 
+    if notice := st.session_state.pop("kb_notice", None):
+        st.success(notice)
+
     # Stats
     col1, col2 = st.columns(2)
 
     from app.parsers.documents import SUPPORTED_EXTENSIONS
 
-    all_files = [
-        path for path in KB_ROOT.rglob("*")
-        if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS
-    ]
-    # Exclude chroma_db and README
-    kb_files = [f for f in all_files if "chroma_db" not in str(f)]
+    kb_files = list_source_files(KB_ROOT, SUPPORTED_EXTENSIONS)
     col1.metric(t("kb_docs_md"), len(kb_files))
 
+    indexed_sources: set[str] = set()
     try:
         from app.rag.retriever import get_chroma_client
 
         client = get_chroma_client(str(CHROMA_PERSIST_DIR))
         coll = client.get_collection("raggy_kb")
         col2.metric(t("kb_chunks_indexed"), coll.count())
+        records = coll.get(include=["metadatas"])
+        indexed_sources = {
+            str(metadata["source_file"])
+            for metadata in records.get("metadatas", [])
+            if metadata and metadata.get("source_file")
+        }
     except Exception:
         col2.metric(t("kb_chunks_indexed"), "N/A")
 
@@ -181,22 +187,26 @@ def admin_kb_manager():
     if "kb_active_mode" not in st.session_state:
         st.session_state.kb_active_mode = None
 
-    # Auto-discover categories (subdirectories)
+    missing_sources = missing_indexed_sources(KB_ROOT, indexed_sources)
+    if missing_sources:
+        st.warning(t("kb_missing_sources", count=len(missing_sources)))
+        st.code("\n".join(missing_sources), language="text")
+
+    groups = file_groups(KB_ROOT, kb_files)
+    if not groups:
+        st.info(t("kb_files_none"))
+
+    # Auto-discover top-level categories for uploads.
     categories = sorted([
         d.name for d in KB_ROOT.iterdir()
         if d.is_dir() and d.name not in ("chroma_db", "__pycache__", "prompts")
     ])
 
-    for cat in categories:
-        cat_dir = KB_ROOT / cat
-        files = sorted([f for f in cat_dir.iterdir() if f.is_file()])
-        if not files:
-            continue
-
+    for cat, files in groups.items():
         with st.expander(f"{cat} ({len(files)} files)"):
             for fpath in files:
-                is_text = fpath.suffix in (".md", ".txt")
-                col_name, col_view, col_edit, col_del = st.columns([5, 1, 1, 1])
+                is_text = fpath.suffix.lower() in (".md", ".txt")
+                col_name, col_view, col_edit, col_download, col_del = st.columns([5, 1, 1, 1, 1])
 
                 with col_name:
                     size_kb = fpath.stat().st_size / 1024
@@ -205,15 +215,14 @@ def admin_kb_manager():
                 key_base = fpath.as_posix().replace("/", "_").replace(".", "_")
 
                 with col_view:
-                    if is_text:
-                        if st.button(f"👁 {t('kb_view')}", key=f"view_{key_base}", use_container_width=True):
-                            if (st.session_state.kb_active_file == fpath and st.session_state.kb_active_mode == "view"):
-                                st.session_state.kb_active_file = None
-                                st.session_state.kb_active_mode = None
-                            else:
-                                st.session_state.kb_active_file = fpath
-                                st.session_state.kb_active_mode = "view"
-                            st.rerun()
+                    if st.button(f"👁 {t('kb_view')}", key=f"view_{key_base}", use_container_width=True):
+                        if (st.session_state.kb_active_file == fpath and st.session_state.kb_active_mode == "view"):
+                            st.session_state.kb_active_file = None
+                            st.session_state.kb_active_mode = None
+                        else:
+                            st.session_state.kb_active_file = fpath
+                            st.session_state.kb_active_mode = "view"
+                        st.rerun()
 
                 with col_edit:
                     if is_text:
@@ -225,6 +234,16 @@ def admin_kb_manager():
                                 st.session_state.kb_active_file = fpath
                                 st.session_state.kb_active_mode = "edit"
                             st.rerun()
+
+                with col_download:
+                    st.download_button(
+                        "⬇",
+                        data=fpath.read_bytes(),
+                        file_name=fpath.name,
+                        key=f"download_{key_base}",
+                        help=t("kb_download"),
+                        use_container_width=True,
+                    )
 
                 with col_del:
                     if st.button("🗑", key=f"del_{key_base}", use_container_width=True):
@@ -242,7 +261,7 @@ def admin_kb_manager():
                             if st.session_state.kb_active_file == fpath:
                                 st.session_state.kb_active_file = None
                                 st.session_state.kb_active_mode = None
-                            st.success(f"{fpath.name} {t('kb_deleted')}")
+                            st.session_state["kb_notice"] = f"{fpath.name} {t('kb_deleted')}"
                             st.rerun()
                     with c2:
                         if st.button(t("kb_cancel"), key=f"no_del_{key_base}"):
@@ -253,11 +272,18 @@ def admin_kb_manager():
                 if (st.session_state.kb_active_file == fpath and st.session_state.kb_active_mode == "view"):
                     with st.container(border=True):
                         st.caption(f"📄 {fpath.name}")
-                        content = fpath.read_text(encoding="utf-8")
-                        if fpath.suffix == ".md":
-                            st.markdown(content)
-                        else:
-                            st.code(content, language="text")
+                        try:
+                            if is_text:
+                                content = fpath.read_text(encoding="utf-8")
+                            else:
+                                from app.parsers.documents import extract_text
+                                content = extract_text(fpath)
+                            if fpath.suffix.lower() == ".md":
+                                st.markdown(content)
+                            else:
+                                st.code(content, language="text")
+                        except Exception as exc:
+                            st.error(f"{t('kb_view_error')}: {exc}")
                         if st.button(t("kb_close"), key=f"close_view_{key_base}"):
                             st.session_state.kb_active_file = None
                             st.session_state.kb_active_mode = None
@@ -279,7 +305,7 @@ def admin_kb_manager():
                         with c1:
                             if st.button(f"💾 {t('kb_save')}", key=f"save_{key_base}", type="primary"):
                                 fpath.write_text(edited, encoding="utf-8")
-                                st.success(t("kb_saved"))
+                                st.session_state["kb_notice"] = t("kb_saved")
                                 st.session_state.kb_active_file = None
                                 st.session_state.kb_active_mode = None
                                 st.rerun()
@@ -340,7 +366,8 @@ def admin_kb_manager():
             return
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
-        st.success(f"'{uploaded.name}' {t('kb_added')} '{category}'")
+        st.session_state["kb_notice"] = f"'{uploaded.name}' {t('kb_added')} '{category}'"
+        st.rerun()
 
     st.divider()
 

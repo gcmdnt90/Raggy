@@ -1,0 +1,18 @@
+{
+  "impianto": "RSM-2026-007",
+  "mese": "agosto 2026",
+  "sito": "Serra agricola",
+  "citta": "Chiesanuova",
+  "potenza_kwp": 15.1,
+  "accumulo_kwh": 0.0,
+  "produzione_kwh": 1843,
+  "produzione_nota": "lettura di fine mese, contatore di scambio",
+  "irraggiamento_kwh_m2": 182.2,
+  "energia_immessa_kwh": 500,
+  "ore_equivalenti": null,
+  "performance_ratio": null,
+  "allarmi": "derating termico inverter",
+  "autoconsumo_percento": "circa 60, dichiarato dal cliente, non misurato",
+  "codice_pratica": null,
+  "classe_rendimento": null
+}

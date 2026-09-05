@@ -1,11 +1,12 @@
-"""Regression tests for Anthropic model-specific request parameters."""
+"""Regression tests for Anthropic provider behaviour."""
 
+import logging
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
-from app.llm.base import LLMMessage
+from app.llm.base import LLMAuthenticationError, LLMMessage
 from app.llm.providers.anthropic import AnthropicProvider
 
 
@@ -74,3 +75,15 @@ def test_generate_stream_omits_temperature_for_new_models():
         "ng",
     ]
     assert "temperature" not in provider._client.messages.stream.call_args.kwargs
+
+
+def test_expected_connection_failure_logs_no_traceback(caplog):
+    provider = _provider("claude-sonnet-4-6")
+    provider.generate = MagicMock(side_effect=LLMAuthenticationError("invalid key"))
+
+    with caplog.at_level(logging.WARNING, logger="app.llm.providers.anthropic"):
+        assert provider.test_connection() is False
+
+    assert len(caplog.records) == 1
+    assert caplog.records[0].levelno == logging.WARNING
+    assert caplog.records[0].exc_info is None
