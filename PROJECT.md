@@ -66,6 +66,13 @@ Each is written so that it can be checked, not admired.
 - **The deck rework is out of scope for now.** Demo slides change only once
   Banco works.
 
+- **Banco does not rely on surprise.** The complete demonstration material ships,
+  answer key included. Nothing in the lesson depends on a participant not having
+  read it — a demonstration whose value evaporates once the audience knows the
+  answer is a trick, not a demonstration. See AI Translator `docs/adr/0004`.
+  One practical consequence: D4 beat 8 is run as a verification the room performs
+  together, not as a reveal the trainer performs at them.
+
 ---
 
 ## What each demonstration needs
@@ -103,10 +110,12 @@ drives every prompt, widget and folder, exactly as it does in the deck.
 
 ## Invariants
 
-1. **Projected surface.** The demo application must never render an API key, a
-   client name, `_perito/ground-truth.csv`, `LEGGIMI-CATENA.md`, or any trainer
-   note. Those belong to the stage console (the admin application, loopback and
-   authenticated) or to the deck's speaker view.
+1. **Projected surface.** The demo application must never render an API key or a
+   client name — those are confidential — nor `_perito/ground-truth.csv`,
+   `LEGGIMI-CATENA.md` or any trainer note, which are not confidential but are
+   trainer material and belong to the stage console or the deck's speaker view.
+   The rule is about focus and about credentials, not about secrecy: see
+   *Banco does not rely on surprise* below.
 2. **Replay, never simulation.** Banco may replay a recording of a real run,
    announced as such. Banco must never display output that no model produced.
    See ADR 3.

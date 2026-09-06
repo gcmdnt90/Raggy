@@ -91,11 +91,13 @@ install from the lock will not work.
    The lesson teaches participants to distrust confident unverifiable output;
    fabricating one forfeits it. See AI Translator `docs/adr/0003`.
 
-2. **The projected surface leaks nothing.** `app/main.py` and everything it
-   renders must never show an API key, a client name, `_perito/ground-truth.csv`,
-   `LEGGIMI-CATENA.md`, or any trainer note. When in doubt it belongs in the
-   stage console, not the harness. This extends Raggy's original invariant that
-   the user app must not expose credentials.
+2. **Keep the projected surface clean.** `app/main.py` and everything it renders
+   must never show an API key or a client name — those are confidential, and this
+   extends Raggy's invariant that the user app must not expose credentials. It
+   must also not show `_perito/ground-truth.csv`, `LEGGIMI-CATENA.md` or any
+   trainer note: those *are* published with the repository on purpose, so this
+   half of the rule is about focus, not secrecy. When in doubt it belongs in the
+   stage console.
 
 3. **Never invent facts about the client's business.** If a prompt, fixture or
    recording needs a detail you do not have — their grading scale, their document
