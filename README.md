@@ -38,8 +38,8 @@ source is an API provider (Anthropic, OpenAI, Google) or a local Ollama model.
 
 A missing source degrades a beat to a replayed recording. It never removes it.
 
-**A sector** — `numismatica`, `fotovoltaico` or `automazione` — which drives
-every prompt and every folder.
+**A sector** — `numismatics`, `photovoltaic` or `automation-software` — which
+drives every prompt and every folder.
 
 ## The demonstrations
 

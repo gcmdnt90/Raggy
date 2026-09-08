@@ -28,8 +28,13 @@ file covers only what is local to this codebase.
 - **Demo database**: `demo/demo-prompts.json` — prompt text, sectors,
   placeholders and, in Banco, machine-readable `run` blocks. Vendored from the
   deck at the commit in `demo/DECK-PIN.txt`.
-- **Sector**: `numismatica` / `fotovoltaico` / `automazione`. Chosen once; drives
-  every prompt, placeholder and folder.
+- **Sector**: `numismatics` / `photovoltaic` / `automation-software` — the ids
+  used by the demo database. Chosen once; drives every prompt, placeholder and
+  folder. Its `data.folder` names the Italian directory under `demo/data/` and
+  its `data.records_dir` the records folder D4 works over.
+- **Variant**: a per-sector override of a node in the demo database
+  (`variants[<sector>]`). Applied before placeholder substitution; a prompt is
+  not sector-specific until it is.
 - **Chain**: the five handover files `d1-bozze.md` … `d5-verifiche-umane.md`.
   Each demo consumes the previous demo's output.
 - **Recording**: a captured real run of a beat, replayable. Not a fixture, not a

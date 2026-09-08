@@ -108,8 +108,12 @@ two APIs). A missing source **degrades a beat to replay — it never removes it*
 | `take-home` | 1 API key (± Ollama) | live except the beats that need a second source |
 | `offline` | Ollama only | D4 and D5-B replay; the rest live |
 
-**Sector** — `numismatica`, `fotovoltaico`, `automazione` — is chosen once and
-drives every prompt, widget and folder, exactly as it does in the deck.
+**Sector** — `numismatics`, `photovoltaic`, `automation-software` — is chosen
+once and drives every prompt, widget and folder, exactly as it does in the deck.
+The ids are English; each sector's `data.folder` in the database names the
+Italian folder under `demo/data/` (`numismatica`, `fotovoltaico`, `automazione`)
+and `data.records_dir` the records folder D4 works over. Never hard-code either
+mapping.
 
 ---
 

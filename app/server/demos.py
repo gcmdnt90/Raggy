@@ -15,6 +15,8 @@ from pathlib import Path
 DB_PATH = Path(__file__).resolve().parent.parent.parent / "demo" / "demo-prompts.json"
 
 # Fields that exist for the trainer and must never reach the harness.
+# `theory-deck/PROMPTS.md` names exactly these three (plus their _it mirrors) as
+# speaker-notes-only. Do not widen this set without checking that document.
 TRAINER_FIELDS = {"lands", "watch_for", "note", "lands_it", "watch_for_it", "note_it"}
 
 _PLACEHOLDER = re.compile(r"\{\{([A-Za-z0-9_]+)\}\}")
@@ -26,10 +28,33 @@ def load() -> dict:
 
 
 def sectors() -> list[dict]:
+    """Sector ids are English (`numismatics`); the data folders are Italian.
+
+    The mapping is in the database, not here: `sector.data.folder` gives the
+    folder under `demo/data/`, `sector.data.records_dir` the records folder D4
+    works over. Never hard-code either.
+    """
     return [
-        {"id": s["id"], "label": s.get("label"), "label_it": s.get("label_it")}
+        {
+            "id": s["id"],
+            "label": s.get("label"),
+            "label_it": s.get("label_it"),
+            "folder": s.get("data", {}).get("folder"),
+            "records_dir": s.get("data", {}).get("records_dir"),
+        }
         for s in load().get("sectors", [])
     ]
+
+
+def data_root(sector: str) -> Path:
+    """Absolute path to this sector's demo material."""
+    folder = next(
+        (s.get("data", {}).get("folder") for s in load().get("sectors", []) if s["id"] == sector),
+        None,
+    )
+    if folder is None:
+        raise KeyError(sector)
+    return DB_PATH.parent / "data" / folder
 
 
 def list_demos() -> list[dict]:
@@ -50,29 +75,52 @@ def _substitute(text: str, client: dict) -> str:
 
 
 def resolve_demo(demo_id: str, sector: str) -> dict:
-    """Return one demo with placeholders substituted and trainer fields stripped.
+    """One demo, resolved for `sector` and safe to render on the projected surface.
 
-    Stripping happens here, once, so no route can leak a trainer field by
-    forgetting to. See AGENTS.md rule 2.
+    Three things happen here, in this order, and all three happen once so that no
+    route can skip one by forgetting:
+
+    1. **Variants applied.** A node carrying `variants` has `variants[sector]`
+       merged over it. This is how a prompt becomes sector-specific; placeholder
+       substitution alone is not enough.
+    2. **Placeholders substituted** from the sector's `client` block.
+    3. **Trainer material removed** - the fields in TRAINER_FIELDS, and any entry
+       in a `files` list flagged `trainer: true`, which the deck already uses to
+       keep a file off the projected download rail.
+
+    See AGENTS.md rules 2 and 4.
     """
     db = load()
-    client = next(
-        (s.get("client", {}) for s in db.get("sectors", []) if s["id"] == sector), {}
-    )
+    sec = next((s for s in db.get("sectors", []) if s["id"] == sector), None)
+    if sec is None:
+        raise KeyError(sector)
+    client = sec.get("client", {})
+
     demo = next((d for d in db.get("demos", []) if d.get("id") == demo_id), None)
     if demo is None:
         raise KeyError(demo_id)
 
-    def clean(node):
+    def resolve(node):
         if isinstance(node, dict):
-            return {k: clean(v) for k, v in node.items() if k not in TRAINER_FIELDS}
+            if "variants" in node:
+                merged = {k: v for k, v in node.items() if k != "variants"}
+                merged.update(node["variants"].get(sector, {}))
+                node = merged
+            out = {}
+            for k, v in node.items():
+                if k in TRAINER_FIELDS:
+                    continue
+                if k == "files" and isinstance(v, list):
+                    v = [f for f in v if not (isinstance(f, dict) and f.get("trainer"))]
+                out[k] = resolve(v)
+            return out
         if isinstance(node, list):
-            return [clean(v) for v in node]
+            return [resolve(v) for v in node]
         if isinstance(node, str):
             return _substitute(node, client)
         return node
 
-    return clean(demo)
+    return resolve(demo)
 
 
 # TODO(M1): a `run` block per beat — panes, provider/model per pane, temperature,
