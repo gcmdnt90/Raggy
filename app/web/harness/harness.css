@@ -1,0 +1,31 @@
+#bar {
+  display: flex; gap: 1.5rem; align-items: center;
+  padding: .6rem 1.2rem; border-bottom: 1px solid var(--rule);
+  color: var(--ink-dim); font-size: .9rem;
+}
+#egress[data-where="local"]  { color: var(--local); }
+#egress[data-where="remote"] { color: var(--remote); }
+#mode[data-mode="replay"] { color: var(--replay); font-weight: 700; }
+#mode[data-mode="live"]   { color: var(--live); }
+
+main { padding: 1.2rem; }
+#demos { display: flex; gap: .6rem; margin-bottom: 1.2rem; }
+#demos button {
+  font: 600 var(--fs-body)/1 var(--sans);
+  background: var(--panel); color: var(--ink);
+  border: 1px solid var(--rule); border-radius: 6px; padding: .7rem 1.1rem;
+  cursor: pointer;
+}
+#demos button[aria-current="true"] { border-color: var(--live); }
+
+#prompt {
+  font-size: var(--fs-prompt); line-height: 1.4;
+  background: var(--panel); border: 1px solid var(--rule);
+  border-radius: 8px; padding: 1.2rem; margin-bottom: 1.2rem;
+}
+
+/* D1 shows four drafts at once; the grid is the demo. */
+#panes { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; }
+.pane { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 1rem; }
+.pane .meta { color: var(--ink-dim); font-family: var(--mono); font-size: .8rem; margin-bottom: .6rem; }
+.pane .thinking { color: var(--ink-dim); border-left: 2px solid var(--rule); padding-left: .8rem; }

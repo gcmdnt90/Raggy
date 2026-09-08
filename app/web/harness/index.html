@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Banco</title>
+<link rel="stylesheet" href="/static/shared/base.css">
+<link rel="stylesheet" href="/static/harness/harness.css">
+
+<!-- THE PROJECTED SURFACE.
+     Nothing rendered here may contain an API key, a client name, a ground-truth
+     file, or a trainer note. See AGENTS.md rule 2. Trainer material is stripped
+     server-side in app/server/demos.py; do not re-add it client-side. -->
+
+<header id="bar">
+  <span id="sector" class="mono"></span>
+  <!-- The egress indicator is an instrument, not decoration: without it D5-A's
+       network-off gesture proves nothing. See PROJECT.md invariant 4. -->
+  <span id="egress" class="mono" title="where the last call went"></span>
+  <span id="mode" class="mono"></span>
+</header>
+
+<main>
+  <nav id="demos"><!-- D1..D5, filled from /api/demos --></nav>
+  <section id="prompt"></section>
+  <section id="panes"><!-- one pane per model source; SSE-fed at M1 --></section>
+</main>
+
+<script src="/static/harness/harness.js"></script>

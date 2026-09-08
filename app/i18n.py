@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-import streamlit as st
+# Language is process state, not framework state: the server holds one UI
+# language per run and the surfaces read it. Do not reintroduce a UI-framework
+# dependency in this module.
+_ui_language: str | None = None
 
 SUPPORTED_LANGUAGES = {"en": "English", "it": "Italiano"}
 DEFAULT_LANGUAGE = "en"
@@ -251,7 +254,7 @@ def t(key: str, **kwargs) -> str:
 def get_language() -> str:
     """Return the current UI language code (reads from session state)."""
     try:
-        return st.session_state.get("ui_language", DEFAULT_LANGUAGE)
+        return _ui_language or DEFAULT_LANGUAGE
     except Exception:
         return DEFAULT_LANGUAGE
 
@@ -259,4 +262,5 @@ def get_language() -> str:
 def set_language(lang: str) -> None:
     """Set the UI language (persists in session state)."""
     if lang in SUPPORTED_LANGUAGES:
-        st.session_state["ui_language"] = lang
+        global _ui_language
+        _ui_language = lang

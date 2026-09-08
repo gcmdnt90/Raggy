@@ -16,14 +16,14 @@ start.bat
 ```
 
 Creates a virtual environment, installs dependencies, runs the setup wizard on
-first launch, and opens the harness at `http://localhost:8501`.
+first launch, and opens the harness at `http://127.0.0.1:8501`.
 
-The stage console — pre-flight, configuration, prompt inspection, logs — is
-separate and loopback-only:
+The stage console — pre-flight, configuration, prompt inspection, logs — is a
+route on the same server, authenticated and never projected:
 
-```bat
-admin.bat
-```
+    http://127.0.0.1:8501/console
+
+`admin.bat` just opens it.
 
 ## First run asks for two things
 

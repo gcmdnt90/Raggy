@@ -1,0 +1,25 @@
+/* Banco — shared tokens.
+   The harness is read from the back of a room. Type sizes here are floors,
+   not suggestions: nothing on the projected surface goes below --fs-body. */
+:root {
+  --ink: #f2f2f0;
+  --ink-dim: #9a9a94;
+  --ground: #14140f;
+  --panel: #1e1e18;
+  --rule: #33332b;
+  --live: #4ec9a0;      /* a live call */
+  --replay: #d8a657;    /* a replayed recording — must be unmistakable */
+  --local: #7aa2f7;     /* egress: localhost */
+  --remote: #e06c75;    /* egress: a vendor endpoint */
+  --fs-body: 20px;
+  --fs-prompt: 30px;
+  --fs-title: 42px;
+  --mono: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  --sans: system-ui, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font: var(--fs-body)/1.5 var(--sans);
+}
+code, pre, .mono { font-family: var(--mono); }

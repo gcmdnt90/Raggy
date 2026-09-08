@@ -195,7 +195,7 @@ def cmd_start(admin: bool = False):
     """Start Streamlit."""
     entry = "app/admin.py" if admin else "app/main.py"
     print(f"🚀 Starting Raggy ({'Admin' if admin else 'User'})...")
-    args = [sys.executable, "-m", "streamlit", "run", entry]
+    args = [sys.executable, "-m", "app.server.main"]
     if admin:
         args.extend(["--server.address", "127.0.0.1", "--server.port", "8502"])
     subprocess.run(args)

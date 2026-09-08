@@ -14,12 +14,17 @@ Banco is the demonstration harness for Workshop 1 of the AI Translator lesson.
 It is a **fork of Raggy** (`git remote raggy`), which is a different tool with a
 different job and is still maintained separately.
 
-Two applications, inherited from Raggy and repurposed:
+**One FastAPI server, two surfaces as routes** (`docs/adr/0002`):
 
-| Entry point | Role | Binding |
+| Route | Surface | Notes |
 |---|---|---|
-| `start.bat` → `app/main.py` | **the harness** — what the room sees | localhost, projected |
-| `admin.bat` → `app/admin.py` | **the stage console** — pre-flight and configuration | loopback only, authenticated |
+| `/` | **the harness** — what the room sees | projected; no credentials, no trainer material |
+| `/console` | **the stage console** — pre-flight and configuration | authenticated, never projected |
+
+`start.bat` (or `scripts/start.sh`) launches `python -m app.server.main` on
+`127.0.0.1:8501`. `admin.bat` only opens the console route — it does not start a
+second application. There is no Streamlit in this repository; do not reintroduce
+it, and do not add a second server, port or UI framework.
 
 Read order for a new agent: `PROJECT.md` → this file → `CONTEXT.md` →
 `docs/adr/` → the AI Translator `docs/adr/0001–0003`.
@@ -76,10 +81,12 @@ them come back.
 defects survived. If you change dependencies, regenerate the locks and re-run
 the above in a scratch directory.
 
-**Known debt:** `pyproject.toml` now declares `chromadb` and no longer declares
-the unused `qdrant-client`, but `requirements.lock` and `requirements-dev.lock`
-have **not** been regenerated. That is M0's first task. Until it is done, a clean
-install from the lock will not work.
+**Known debt, all of it M0's first task.** `pyproject.toml` now declares
+`chromadb` (dropping the unused `qdrant-client`) and `fastapi` / `uvicorn`
+(dropping `streamlit`), but `requirements.lock` and `requirements-dev.lock` have
+**not** been regenerated, so a clean install from the lock will not work yet.
+`fastapi` and `uvicorn` carry lower bounds only and must be pinned to real
+resolved versions at the same time.
 
 ---
 
@@ -106,20 +113,25 @@ install from the lock will not work.
    live, in front of the client, by the one person who knows it is wrong. This
    rule is inherited verbatim from `theory-deck/PROMPTS.md` and applies here too.
 
-4. **Prompts live in the database, not in code.** `demo/demo-prompts.json` is the
+4. **Trainer fields are stripped server-side, once.** `app/server/demos.py`
+   removes `lands`, `watch_for` and every `note` before a demo reaches the
+   harness. Do not filter client-side instead, and do not add a route that
+   returns the raw database to the projected surface.
+
+5. **Prompts live in the database, not in code.** `demo/demo-prompts.json` is the
    single source of truth for prompt text, shared with the deck. Editing a prompt
    in a Python file is a bug. See `docs/adr/0001`.
 
-5. **Do not vendor an agent framework.** The agent loop must stay small enough to
+6. **Do not vendor an agent framework.** The agent loop must stay small enough to
    put on a projector — that is the point of it. Hermes Agent and OpenClaw are
    both MIT and both the wrong shape (messaging-gateway personal agents, not
    teaching harnesses). Borrow ideas, cite them, do not copy the codebase.
 
-6. **Do not delete a prompt or a recording that stopped working.** Archive it
+7. **Do not delete a prompt or a recording that stopped working.** Archive it
    with the date and what changed, as `PROMPTS.md` requires. Models change; the
    record of how they changed is teaching material.
 
-7. **The chain never waits.** Handover files `d1-bozze.md` … `d5-verifiche-umane.md`
+8. **The chain never waits.** Handover files `d1-bozze.md` … `d5-verifiche-umane.md`
    must exist on disk before a lesson. A successful run overwrites; a failed run
    leaves the file intact.
 
@@ -127,8 +139,12 @@ install from the lock will not work.
 
 ## 5. Where things are
 
-    app/main.py            the harness (projected)
-    app/admin.py           the stage console (loopback, authenticated)
+    app/server/main.py     the FastAPI app; mounts both surfaces
+    app/server/harness.py  routes for the projected surface
+    app/server/console.py  routes for the stage console
+    app/server/demos.py    reads the demo database; strips trainer fields
+    app/web/harness/       the projected page (HTML/CSS/JS, no build step)
+    app/web/console/       the console page
     app/llm/               providers, router, model catalog, Ollama bootstrap
     app/rag/               embeddings, retriever, pipeline — D3 rung 3, D5-A
     app/parsers/           pdf, docx, xlsx, text

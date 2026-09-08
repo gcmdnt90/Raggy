@@ -1,35 +1,32 @@
 @echo off
 setlocal
-title Raggy — Start
+title Banco
 cd /d "%~dp0"
 
-:: Create venv if needed
 if not exist "venv" (
     echo Creating local virtual environment...
     python -m venv venv
     if errorlevel 1 (
-        echo ERROR: cannot create venv. Verify that Python 3.11+ is installed.
+        echo ERROR: cannot create venv. Verify that Python 3.10+ is installed.
         pause
         exit /b 1
     )
-    echo Installing dependencies in local venv...
+    echo Installing dependencies...
     venv\Scripts\python.exe -m pip install --upgrade pip -q
     venv\Scripts\python.exe -m pip install -r requirements.txt
 )
 
-:: First run — setup wizard
-if not exist "knowledge_base\chroma_db" (
+if not exist ".env" (
     echo First run: starting setup wizard...
     venv\Scripts\python.exe scripts\setup_wizard.py
 )
 
-:: Open browser after 4 seconds (background)
-start "" cmd /c "timeout /t 4 /nobreak >nul && start http://localhost:8501"
+start "" cmd /c "timeout /t 3 /nobreak >nul && start http://127.0.0.1:8501"
 
-:: Start Raggy
 echo.
-echo  Raggy will open automatically in your browser at http://localhost:8501
-echo  Press CTRL+C to stop the server.
+echo  Banco          http://127.0.0.1:8501
+echo  Stage console  http://127.0.0.1:8501/console
+echo  CTRL+C to stop.
 echo.
-venv\Scripts\python.exe -m streamlit run app\main.py
+venv\Scripts\python.exe -m app.server.main
 pause

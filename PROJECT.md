@@ -57,6 +57,11 @@ Each is written so that it can be checked, not admired.
   segment is where they meet it.
 - **Banco is not a replacement for Raggy.** Raggy remains the Workshop 2
   construction scaffold in the framework glossary.
+- **Banco is not a multi-stack project.** Python and one dependency-free browser
+  page. No UI framework, no build step, no second server or port. The
+  implementation is written by AI agents from this document and `AGENTS.md`, and
+  every extra choice offered is a wrong turn available to take.
+
 - **Banco is not a general agent framework.** The agent loop exists to be *shown*
   and must stay small enough to put on a projector. Do not vendor Hermes,
   OpenClaw or similar; borrow ideas, not code.
@@ -137,8 +142,9 @@ tests). Regenerate `requirements.lock` from the corrected `pyproject.toml`.
 Confirm the inherited Raggy applications still run.
 
 **M1 — the spine.** Demo database schema extended with machine-readable `run`
-blocks; demo selector D1–D5; multi-pane execution; the egress indicator; the
-setup wizard with profiles.
+blocks; demo selector D1–D5; multi-pane execution over Server-Sent Events; the
+egress indicator; provider and profile configuration on the console. The FastAPI
+skeleton and both surfaces exist in outline already — see `docs/adr/0002`.
 
 **M2 — the demonstrations that need no agent.** D1, D2, D3 (all three rungs),
 D5-A, D5-C. At the end of M2 a lesson is deliverable with D4 and D5-B still run
@@ -169,6 +175,7 @@ repository. Implementation decisions live in `docs/adr/` here.
 | Banco is a separate repository, forked from Raggy | AI Translator `docs/adr/0002` |
 | Replay, never simulation | AI Translator `docs/adr/0003` |
 | The demo database stays in the deck; Banco vendors a pinned copy | `docs/adr/0001` (here) |
+| One FastAPI server, two surfaces; Streamlit removed | `docs/adr/0002` (here) |
 
 Shared vocabulary — **Banco**, **Replay**, **Data path**, **Tool category vs.
 delivery vehicle** — is defined in the AI Translator `CONTEXT.md`. Terms local to

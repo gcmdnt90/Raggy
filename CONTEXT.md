@@ -11,12 +11,14 @@ file covers only what is local to this codebase.
 
 ## Terms
 
-- **Harness**: the chat-facing application (`app/main.py`, `start.bat`). It is a
-  **projected surface** — everything it renders is on a screen in front of a
-  client's staff.
-- **Stage console**: the authenticated, loopback-only application
-  (`app/admin.py`, `admin.bat`) used for pre-flight, configuration, prompt
-  inspection, indexing and logs. Never projected.
+- **Harness**: the projected surface, served at `/`. Everything it renders is on
+  a screen in front of a client's staff.
+- **Stage console**: the authenticated surface at `/console`, used for
+  pre-flight, configuration, prompt inspection, indexing and logs. Never
+  projected. It is a route on the same server, not a second application.
+- **Trainer field**: a demo-database field written for the trainer and never for
+  the room — `lands`, `watch_for`, any `note`. Stripped server-side in
+  `app/server/demos.py`.
 - **Demo**: one of D1–D5. Has a *shape* (varianza, giudizio, scala, costruzione,
   attacco) and a mechanism it teaches. Two demos with the same shape is a bug.
 - **Beat**: one prompt inside a demo, identified as `m<demo>-p<n>`. The unit that
