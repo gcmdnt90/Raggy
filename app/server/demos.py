@@ -15,9 +15,16 @@ from pathlib import Path
 DB_PATH = Path(__file__).resolve().parent.parent.parent / "demo" / "demo-prompts.json"
 
 # Fields that exist for the trainer and must never reach the harness.
-# `theory-deck/PROMPTS.md` names exactly these three (plus their _it mirrors) as
-# speaker-notes-only. Do not widen this set without checking that document.
-TRAINER_FIELDS = {"lands", "watch_for", "note", "lands_it", "watch_for_it", "note_it"}
+# `theory-deck/PROMPTS.md` names `lands`, `watch_for` and `note` as
+# speaker-notes-only; `limits` was confirmed trainer-facing on 2026-09-05 (it is
+# a reminder to the trainer about what a given product does or does not expose).
+# Do not widen this set without confirming the field's audience.
+TRAINER_FIELDS = {
+    "lands", "lands_it",
+    "watch_for", "watch_for_it",
+    "note", "note_it",
+    "limits", "limits_it",
+}
 
 _PLACEHOLDER = re.compile(r"\{\{([A-Za-z0-9_]+)\}\}")
 

@@ -81,6 +81,26 @@ them come back.
 defects survived. If you change dependencies, regenerate the locks and re-run
 the above in a scratch directory.
 
+### Regenerating the locks
+
+`pyproject.toml` declares ranges; the `.lock` files are the exact resolved set,
+including transitive dependencies, and are what `start.bat` actually installs.
+They are generated, never hand-edited. Run this **on Windows**, where Banco is
+delivered - the existing lock was resolved on Windows with Python 3.13 and
+carries no platform markers, so resolving it on Linux would silently produce a
+different set:
+
+    venv\Scripts\python -m pip install pip-tools
+    venv\Scripts\python -m piptools compile --strip-extras -o requirements.lock pyproject.toml
+    venv\Scripts\python -m piptools compile --extra dev --strip-extras -o requirements-dev.lock pyproject.toml
+
+Note the difference from the command recorded in the current lock header: **drop
+`--no-index`**. It stops pip-compile reaching PyPI, and `chromadb`, `fastapi` and
+`uvicorn` are new here - their metadata is not in a local cache.
+
+Then pin `fastapi` and `uvicorn` in `pyproject.toml` to the versions that
+resolved, and re-run the clean-checkout verification above.
+
 **Known debt, all of it M0's first task.** `pyproject.toml` now declares
 `chromadb` (dropping the unused `qdrant-client`) and `fastapi` / `uvicorn`
 (dropping `streamlit`), but `requirements.lock` and `requirements-dev.lock` have
