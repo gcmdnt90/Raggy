@@ -7,7 +7,10 @@ files in logs/, WARNING+ to console. Suppresses noisy third-party loggers.
 
 import logging
 import logging.handlers
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+DEFAULT_LOG_RETENTION_DAYS = 14
 
 
 def setup_logging(level: str = "DEBUG") -> None:
@@ -71,3 +74,71 @@ def setup_logging(level: str = "DEBUG") -> None:
         logging.getLogger(name).setLevel(logging.ERROR)
 
     logging.getLogger("raggy").info("Logging configured — output: %s", log_file)
+
+
+def _is_log_file(path: Path) -> bool:
+    """True for files this project writes as logs, and nothing else.
+
+    The retention sweep is deliberately name-based rather than age-only:
+    logs/ also holds tokens.db, the token-budget store, which must survive
+    however old it gets.
+    """
+    name = path.name
+    return name.endswith(".log") or name.endswith(".jsonl") or ".log." in name
+
+
+def cleanup_old_logs(
+    log_dir: Path,
+    retention_days: int = DEFAULT_LOG_RETENTION_DAYS,
+    now: datetime | None = None,
+) -> list[Path]:
+    """Delete log files in *log_dir* older than *retention_days*.
+
+    TimedRotatingFileHandler's own backupCount only prunes files it rotated
+    itself in this process. It does not touch the JSONL transcripts, and it
+    prunes nothing at all if the app is started fresh each day — which is how
+    Banco is used. This sweep is what actually bounds the directory.
+
+    Logs are the one place where a prompt typed in a client's room is written
+    to disk, so retention is a confidentiality control, not housekeeping.
+
+    Parameters
+    ----------
+    log_dir:
+        Directory to sweep. Missing directories are not an error.
+    retention_days:
+        Files last modified before ``now - retention_days`` are removed.
+    now:
+        Reference time, for tests. Defaults to the current UTC time.
+
+    Returns
+    -------
+    list[Path]
+        The files that were removed, in no particular order. Files that could
+        not be removed are skipped rather than raising: log cleanup must never
+        be the reason a lesson fails to start.
+    """
+    log_dir = Path(log_dir)
+    if not log_dir.is_dir():
+        return []
+
+    reference = now or datetime.now(timezone.utc)
+    if reference.tzinfo is None:
+        reference = reference.replace(tzinfo=timezone.utc)
+    cutoff = reference - timedelta(days=retention_days)
+
+    removed: list[Path] = []
+    for path in log_dir.iterdir():
+        if not path.is_file() or not _is_log_file(path):
+            continue
+        try:
+            modified = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+            if modified >= cutoff:
+                continue
+            path.unlink()
+        except OSError:
+            logging.getLogger("raggy").warning("Could not remove old log %s", path)
+            continue
+        removed.append(path)
+
+    return removed

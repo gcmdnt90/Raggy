@@ -2,7 +2,9 @@
 
 from pathlib import Path
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, field_validator
+
+from app.utils.network import normalize_ollama_base_url
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 KB_ROOT = PROJECT_ROOT / "knowledge_base"
@@ -38,6 +40,22 @@ class Settings(BaseSettings):
 
     # Admin
     admin_password: str = Field(default="changeme", description="Admin panel password")
+
+    @field_validator("ollama_base_url")
+    @classmethod
+    def _validate_ollama_base_url(cls, value: str) -> str:
+        """Reject a non-loopback or credentialed Ollama target at load time.
+
+        OLLAMA_BASE_URL comes from .env and reaches requests unmodified, so an
+        unchecked value is a server-side request forgery primitive. Failing
+        here means a bad value surfaces during pre-flight on the stage console,
+        where a trainer can act on it, rather than mid-demonstration.
+
+        A deliberate remote Ollama is not supported by this field yet: it would
+        send every prompt off the machine, so it needs an explicit setting and
+        an egress indicator that shows it, not a quiet exception here.
+        """
+        return normalize_ollama_base_url(value)
 
     model_config = {
         "env_file": str(PROJECT_ROOT / ".env"),

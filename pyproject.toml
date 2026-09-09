@@ -42,10 +42,6 @@ dev = [
 [tool.setuptools.packages.find]
 include = ["app*", "scripts*"]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-markers = ["integration: tests that require external services or slower local resources"]
-
 [tool.ruff]
 target-version = "py310"
 line-length = 100
