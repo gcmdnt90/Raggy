@@ -7,7 +7,7 @@ import unicodedata
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import BinaryIO
 
 PDF_MAX_SIZE_BYTES = 5 * 1024 * 1024
@@ -16,6 +16,10 @@ PDF_PARSE_TIMEOUT_SECONDS = 10
 
 TEXT_MAX_SIZE_BYTES = 1 * 1024 * 1024
 OOXML_MAX_SIZE_BYTES = 10 * 1024 * 1024
+# A ZIP container declares how large its members expand to, so a 10 MB upload
+# can claim to unpack to petabytes. Cap the declared total as well as the
+# compressed size, or the size check above is decorative.
+OOXML_MAX_UNCOMPRESSED_BYTES = 100 * 1024 * 1024
 XLSX_MAX_CELLS = 100_000
 
 _ZERO_WIDTH_CHARS = {
@@ -137,15 +141,60 @@ def validate_text_bytes(data: bytes, *, max_size: int = TEXT_MAX_SIZE_BYTES) -> 
         raise ValueError("Text file must be valid UTF-8.") from exc
 
 
+def _is_unsafe_member_path(name: str) -> bool:
+    """True if a ZIP member name could escape the directory it unpacks into.
+
+    An Office Open XML part name is a plain relative POSIX path. Anything that
+    is absolute, climbs with "..", or carries a Windows separator or drive
+    letter is either malformed or an attempt at path traversal, and Banco is
+    delivered on Windows where "..\\" and "C:" both matter.
+    """
+    if not name:
+        return True
+    if "\\" in name or ":" in name:
+        return True
+    if name.startswith("/"):
+        return True
+    return any(part == ".." for part in PurePosixPath(name).parts)
+
+
+def _assert_safe_members(archive: zipfile.ZipFile, *, kind: str) -> None:
+    """Reject traversal paths and declared-size bombs before anything is read.
+
+    The sizes checked here are the ones the container declares in its own
+    headers, which a hostile archive can understate. That is still worth
+    checking - it stops the ordinary decompression bomb, which works precisely
+    by declaring its true, enormous size - but it is not a substitute for
+    bounding what a parser actually reads.
+    """
+    total_uncompressed = 0
+    for info in archive.infolist():
+        if _is_unsafe_member_path(info.filename):
+            raise ValueError(f"Invalid {kind}: unsafe member path {info.filename!r}.")
+        total_uncompressed += info.file_size
+        if total_uncompressed > OOXML_MAX_UNCOMPRESSED_BYTES:
+            raise ValueError(
+                f"{kind} too large: {total_uncompressed} bytes uncompressed exceeds "
+                f"{OOXML_MAX_UNCOMPRESSED_BYTES}."
+            )
+
+
 def _validate_zip_payload(data: bytes, *, kind: str) -> zipfile.ZipFile:
     if not data.startswith(b"PK\x03\x04"):
         raise ValueError(f"Invalid {kind}: missing ZIP magic bytes.")
     if len(data) > OOXML_MAX_SIZE_BYTES:
         raise ValueError(f"{kind} too large: {len(data)} bytes exceeds {OOXML_MAX_SIZE_BYTES}.")
     try:
-        return zipfile.ZipFile(io.BytesIO(data))
+        archive = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile as exc:
         raise ValueError(f"Invalid {kind}: corrupt ZIP container.") from exc
+
+    try:
+        _assert_safe_members(archive, kind=kind)
+    except Exception:
+        archive.close()
+        raise
+    return archive
 
 
 def validate_docx(file_or_path: str | Path | bytes | BinaryIO) -> ValidatedOOXML:
