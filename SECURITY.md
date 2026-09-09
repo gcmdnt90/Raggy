@@ -9,12 +9,14 @@ not backported to older snapshots.
 
 ## Deployment baseline
 
-- Run both Streamlit applications on loopback unless a trusted reverse proxy
-  supplies authentication and TLS.
+- Run the server on loopback unless a trusted reverse proxy supplies
+  authentication and TLS. Both surfaces are routes on it; the stage console
+  at `/console` additionally requires authentication.
 - Never expose an embedded vector store as a network service.
 - Keep `.env`, `logs/`, and `knowledge_base/` access limited to the local user.
-- Apply dependency updates through `update.bat` and retain them only after the
-  automated tests and dependency audit pass.
+- Apply dependency updates by regenerating the locks and re-running the
+  clean-checkout verification in `AGENTS.md` §3; retain them only after the
+  automated tests and the dependency audit pass.
 
 
 ## Banco's second threat model

@@ -45,7 +45,7 @@ FALLBACK_MODELS: dict[str, list[str]] = {
 
 # Time-to-live for cached results (seconds). Successful lists remain fresh for
 # an hour. Failures use a shorter window so provider outages are retried while
-# still preventing every Streamlit rerun from repeating the same failed call.
+# still preventing every page load from repeating the same failed call.
 CACHE_TTL = 3600
 FAILURE_CACHE_TTL = 300
 

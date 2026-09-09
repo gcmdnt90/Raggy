@@ -72,10 +72,26 @@ were found on 2026-09-05 that only appear on a fresh clone (see
 `Raggy/logs/FIXME-vectorstore-dependency.md`). Both are fixed here. Do not let
 them come back.
 
+Windows, PowerShell - this is the platform Banco is delivered on:
+
+    git clone <repo> $env:TEMP\banco-clean
+    Set-Location $env:TEMP\banco-clean
+    python -m venv .venv
+    .\.venv\Scripts\python.exe -m pip install -r requirements.lock
+    .\.venv\Scripts\python.exe -c "import chromadb, app.rag.retriever, app.server.main"
+    .\.venv\Scripts\python.exe -m pip install -r requirements-dev.lock
+    .\.venv\Scripts\python.exe -m pytest tests/
+
+Linux or Mac, for a developer not on the delivery platform:
+
     git clone <repo> /tmp/banco-clean && cd /tmp/banco-clean
     python -m venv .venv && .venv/bin/pip install -r requirements.lock
-    .venv/bin/python -c "import chromadb, app.rag.retriever, app.admin"
-    .venv/bin/pytest tests/
+    .venv/bin/python -c "import chromadb, app.rag.retriever, app.server.main"
+    .venv/bin/pip install -r requirements-dev.lock && .venv/bin/pytest tests/
+
+The two installs are deliberate and in that order. `requirements.lock` is what
+`start.bat` gives a participant, so it is verified alone first; `pytest` lives
+only in `requirements-dev.lock`, which is a superset, so the test step needs it.
 
 **Testing in an existing `venv/` proves nothing** — that is exactly how both
 defects survived. If you change dependencies, regenerate the locks and re-run
@@ -94,19 +110,24 @@ different set:
     venv\Scripts\python -m piptools compile --strip-extras -o requirements.lock pyproject.toml
     venv\Scripts\python -m piptools compile --extra dev --strip-extras -o requirements-dev.lock pyproject.toml
 
-Note the difference from the command recorded in the current lock header: **drop
-`--no-index`**. It stops pip-compile reaching PyPI, and `chromadb`, `fastapi` and
-`uvicorn` are new here - their metadata is not in a local cache.
+Do **not** add `--no-index` - it would stop pip-compile reaching PyPI. The
+`--no-index` token in the lock header is not a record of a flag anyone passed:
+pip-compile emits it itself, and it reappears in every regenerated header. An
+earlier revision of this file read that token as a passed flag; it is not one.
 
-Then pin `fastapi` and `uvicorn` in `pyproject.toml` to the versions that
-resolved, and re-run the clean-checkout verification above.
+Then cap the newly declared dependencies in `pyproject.toml` at the next version
+the house style allows, and re-run the clean-checkout verification above.
 
-**Known debt, all of it M0's first task.** `pyproject.toml` now declares
-`chromadb` (dropping the unused `qdrant-client`) and `fastapi` / `uvicorn`
-(dropping `streamlit`), but `requirements.lock` and `requirements-dev.lock` have
-**not** been regenerated, so a clean install from the lock will not work yet.
-`fastapi` and `uvicorn` carry lower bounds only and must be pinned to real
-resolved versions at the same time.
+**Done 2026-09-09 (M0).** Both locks were regenerated on Windows with Python
+3.13 from the corrected `pyproject.toml`. `streamlit` and `qdrant-client` are
+gone; `chromadb==1.5.9` and `fastapi==0.141.1` are in. `uvicorn==0.52.4` and
+`starlette==1.6.0` were previously in the lock only as transitives of
+`streamlit`, so their old pins carried no weight; `uvicorn` is now a declared
+dependency and `starlette` comes via `fastapi`. `fastapi` and `uvicorn` are
+capped at `<0.142` and `<0.53` - next minor, matching how every other 0.x
+dependency here is bounded. Both are tighter than the lock needs, because the
+lock is the reproducibility mechanism; loosen them if the cap starts costing an
+edit per upstream release.
 
 ---
 

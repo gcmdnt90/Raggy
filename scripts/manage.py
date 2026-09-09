@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Raggy Management CLI — Quick commands for management.
+Banco Management CLI — Quick commands for management.
 
 Usage:
     python -m scripts.manage status          # Show system status
@@ -10,8 +10,7 @@ Usage:
     python -m scripts.manage prompt show     # Show current prompts
     python -m scripts.manage ollama pull X   # Download Ollama model
     python -m scripts.manage ollama list     # List installed Ollama models
-    python -m scripts.manage start           # Start Raggy
-    python -m scripts.manage start --admin   # Start admin panel
+    python -m scripts.manage start           # Start Banco (harness + console)
 """
 
 import os
@@ -48,7 +47,7 @@ def cmd_status():
 
     settings = get_settings()
 
-    print("─── Raggy Status ───")
+    print("─── Banco Status ───")
     print(f"  LLM Provider:    {settings.llm_provider}")
     print(f"  Model:           {settings.llm_model}")
 
@@ -191,19 +190,17 @@ def cmd_ollama(action: str, model: str = None):
             print(f"  - {m['name']} — {m['description']}")
 
 
-def cmd_start(admin: bool = False):
-    """Start Streamlit."""
-    entry = "app/admin.py" if admin else "app/main.py"
-    print(f"🚀 Starting Raggy ({'Admin' if admin else 'User'})...")
-    args = [sys.executable, "-m", "app.server.main"]
-    if admin:
-        args.extend(["--server.address", "127.0.0.1", "--server.port", "8502"])
-    subprocess.run(args)
+def cmd_start():
+    """Start the one server. The stage console is a route on it, not a second app."""
+    print("🚀 Starting Banco...")
+    print("   Harness        http://127.0.0.1:8501")
+    print("   Stage console  http://127.0.0.1:8501/console")
+    subprocess.run([sys.executable, "-m", "app.server.main"])
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Raggy Management CLI",
+        description="Banco Management CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -223,8 +220,7 @@ def main():
     ollama_parser.add_argument("action", choices=["pull", "list", "recommend"])
     ollama_parser.add_argument("model", nargs="?")
 
-    start_parser = subparsers.add_parser("start", help="Start Raggy")
-    start_parser.add_argument("--admin", action="store_true", help="Start admin panel")
+    subparsers.add_parser("start", help="Start Banco (harness and stage console)")
 
     args = parser.parse_args()
 
@@ -243,7 +239,7 @@ def main():
     elif args.command == "ollama":
         cmd_ollama(args.action, getattr(args, "model", None))
     elif args.command == "start":
-        cmd_start(admin=args.admin)
+        cmd_start()
 
 
 if __name__ == "__main__":
