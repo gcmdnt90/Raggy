@@ -18,12 +18,18 @@ different job and is still maintained separately.
 
 | Route | Surface | Notes |
 |---|---|---|
-| `/` | **the harness** — what the room sees | projected; no credentials, no trainer material |
+| `/` | redirect to `/console` | Banco opens on pre-flight, every launch |
+| `/harness` | **the harness** — what the room sees | projected; no credentials, no trainer material |
 | `/console` | **the stage console** — pre-flight and configuration | authenticated, never projected |
 
+`/` used to be the harness. It now redirects to pre-flight, because a check that
+runs only when Banco thinks it is needed is not a check: the machine that fails
+is the one that worked last week. **`/harness` is the only URL safe to put on a
+projector** — `/` and `/console` show key fields.
+
 `start.bat` (or `scripts/start.sh`) launches `python -m app.server.main` on
-`127.0.0.1:8501`. `admin.bat` only opens the console route — it does not start a
-second application. There is no Streamlit in this repository; do not reintroduce
+`127.0.0.1:8501` and opens pre-flight. `admin.bat` only opens the console route —
+it does not start a second application. There is no Streamlit in this repository; do not reintroduce
 it, and do not add a second server, port or UI framework.
 
 Read order for a new agent: `PROJECT.md` → this file → `CONTEXT.md` →

@@ -1,6 +1,7 @@
 """Banco — one server, two surfaces.
 
-    /          the harness       — projected, no credentials, no trainer material
+    /          redirects to /console — Banco opens on pre-flight, every time
+    /harness   the harness       — projected, no credentials, no trainer material
     /console   the stage console — pre-flight and configuration, authenticated
 
 Both bind to loopback. See CONTEXT.md for the invariants each surface must hold
@@ -12,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.server import console, harness
@@ -22,6 +24,24 @@ app = FastAPI(title="Banco", docs_url=None, redoc_url=None)
 
 app.include_router(harness.router)
 app.include_router(console.router, prefix="/console")
+
+
+@app.get("/", include_in_schema=False)
+def root() -> RedirectResponse:
+    """Banco opens on pre-flight. Every time, not only when unconfigured.
+
+    A machine that worked last week arrives at a client with Ollama not started,
+    a key rotated, or the chain files regenerated. The check costs seconds and
+    the failure costs a demonstration, so it runs on every launch rather than
+    when Banco guesses it is needed.
+
+    This is also why the projected surface moved to `/harness`: `/` now shows
+    key fields, and the URL that goes on a projector must be the one that
+    cannot.
+    """
+    return RedirectResponse("/console", status_code=307)
+
+
 app.mount("/static", StaticFiles(directory=str(WEB_ROOT)), name="static")
 
 

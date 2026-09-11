@@ -1,0 +1,78 @@
+/* The stage console. Read from a laptop at arm's length, not from a room, so the
+   projected-surface type floors in base.css do not apply here — but the colour
+   vocabulary does, and means exactly what it means on the harness. */
+
+#bar {
+  display: flex; gap: 1rem; align-items: baseline; flex-wrap: wrap;
+  padding: .7rem 1.2rem; border-bottom: 1px solid var(--rule);
+}
+.brand { font-weight: 700; }
+.where { color: var(--replay); font-size: .9rem; }
+
+.chip {
+  font-family: var(--mono); font-size: .85rem;
+  padding: .2rem .7rem; border: 1px solid var(--rule); border-radius: 999px;
+  color: var(--ink-dim);
+}
+.chip[data-profile="classroom"] { color: var(--live); border-color: var(--live); }
+.chip[data-profile="take-home"] { color: var(--replay); border-color: var(--replay); }
+.chip[data-profile="offline"]   { color: var(--local); border-color: var(--local); }
+.chip[data-profile="unconfigured"] { color: var(--remote); border-color: var(--remote); }
+.link { margin-left: auto; text-decoration: none; color: var(--live); border-color: var(--live); }
+
+.alert {
+  margin: 0; padding: .8rem 1.2rem;
+  background: color-mix(in srgb, var(--remote) 12%, transparent);
+  border-bottom: 1px solid var(--remote); color: var(--remote);
+}
+
+main {
+  display: grid; gap: 1rem; padding: 1.2rem;
+  grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
+  align-items: start;
+}
+
+.card {
+  background: var(--panel); border: 1px solid var(--rule);
+  border-radius: 8px; padding: 1.2rem;
+}
+.card h2 { margin: 0 0 .3rem; font-size: 1.1rem; }
+.card h3 { margin: 1.2rem 0 .4rem; font-size: .9rem; color: var(--ink-dim);
+           text-transform: uppercase; letter-spacing: .08em; }
+.lead { margin: 0 0 1rem; color: var(--ink-dim); font-size: .95rem; }
+.note { color: var(--ink-dim); font-size: .85rem; }
+
+.row { display: grid; grid-template-columns: 9rem 1fr; gap: .4rem .8rem;
+       align-items: center; margin-bottom: .7rem; }
+.row label { color: var(--ink-dim); font-size: .9rem; }
+.row .state { font-family: var(--mono); font-size: .8rem; }
+.row input { grid-column: 1 / -1; font: inherit; font-size: .95rem;
+             background: var(--ground); color: var(--ink);
+             border: 1px solid var(--rule); border-radius: 6px; padding: .5rem .6rem; }
+
+.state[data-set="true"]  { color: var(--live); }
+.state[data-set="false"] { color: var(--ink-dim); }
+
+button {
+  font: 600 .95rem/1 var(--sans); cursor: pointer;
+  background: var(--live); color: var(--ground);
+  border: 0; border-radius: 6px; padding: .6rem 1.1rem;
+}
+button.secondary { background: transparent; color: var(--ink-dim); border: 1px solid var(--rule); }
+button:disabled { background: var(--rule); color: var(--ink-dim); cursor: not-allowed; }
+
+.list { list-style: none; margin: 0; padding: 0; }
+.list li { display: flex; gap: .6rem; align-items: baseline;
+           padding: .4rem 0; border-bottom: 1px solid var(--rule); font-size: .95rem; }
+.list li:last-child { border-bottom: 0; }
+.list .mark { font-family: var(--mono); }
+.list li[data-ok="true"]  .mark { color: var(--live); }
+.list li[data-ok="false"] .mark { color: var(--replay); }
+.list .action { color: var(--ink-dim); font-size: .85rem; }
+.list .pull { margin-left: auto; padding: .25rem .7rem; font-size: .8rem; }
+
+.log {
+  margin-top: 1rem; padding: .7rem; max-height: 14rem; overflow: auto;
+  background: var(--ground); border: 1px solid var(--rule); border-radius: 6px;
+  font-family: var(--mono); font-size: .8rem; white-space: pre-wrap;
+}

@@ -1,5 +1,6 @@
 <!doctype html>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Banco</title>
 <link rel="stylesheet" href="/static/shared/base.css">
 <link rel="stylesheet" href="/static/harness/harness.css">
@@ -7,20 +8,53 @@
 <!-- THE PROJECTED SURFACE.
      Nothing rendered here may contain an API key, a client name, a ground-truth
      file, or a trainer note. See AGENTS.md rule 2. Trainer material is stripped
-     server-side in app/server/demos.py; do not re-add it client-side. -->
+     server-side in app/server/demos.py; do not re-add it client-side.
+
+     Everything on this page is read from the server. The page holds no prompt
+     text of its own (docs/adr/0001) and never fabricates model output: a pane
+     that cannot run says so (AGENTS.md rule 1). -->
 
 <header id="bar">
-  <span id="sector" class="mono"></span>
+  <span class="brand">Banco</span>
+
+  <label class="field">
+    <span>sector</span>
+    <select id="sector"></select>
+  </label>
+
+  <span id="profile" class="chip" title="derived from what this machine can actually reach"></span>
+
   <!-- The egress indicator is an instrument, not decoration: without it D5-A's
        network-off gesture proves nothing. See PROJECT.md invariant 4. -->
-  <span id="egress" class="mono" title="where the last call went"></span>
-  <span id="mode" class="mono"></span>
+  <span id="egress" class="chip egress" title="where calls went">
+    <span class="egress-label">egress</span>
+    <span id="egress-targets">—</span>
+  </span>
+
+  <span id="mode" class="chip mode" hidden></span>
 </header>
 
+<nav id="demos" aria-label="demonstrations"></nav>
+
 <main>
-  <nav id="demos"><!-- D1..D5, filled from /api/demos --></nav>
-  <section id="prompt"></section>
-  <section id="panes"><!-- one pane per model source; SSE-fed at M1 --></section>
+  <section id="left">
+    <ol id="beats" aria-label="beats"></ol>
+
+    <div id="detail" hidden>
+      <p id="teaches"></p>
+      <p id="blocked" class="blocked" hidden></p>
+      <button id="run" type="button">Run</button>
+      <details id="prompt-box">
+        <summary>prompt as sent</summary>
+        <pre id="prompt"></pre>
+      </details>
+    </div>
+  </section>
+
+  <section id="right">
+    <p id="banner" class="banner" hidden></p>
+    <div id="panes"></div>
+  </section>
 </main>
 
 <script src="/static/harness/harness.js"></script>

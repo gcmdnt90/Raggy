@@ -21,11 +21,11 @@ if not exist ".env" (
     venv\Scripts\python.exe scripts\setup_wizard.py
 )
 
-start "" cmd /c "timeout /t 3 /nobreak >nul && start http://127.0.0.1:8501"
+start "" cmd /c "timeout /t 3 /nobreak >nul && start http://127.0.0.1:8501/console"
 
 echo.
-echo  Banco          http://127.0.0.1:8501
-echo  Stage console  http://127.0.0.1:8501/console
+echo  Pre-flight     http://127.0.0.1:8501/console   (Banco opens here)
+echo  Harness        http://127.0.0.1:8501/harness   (project THIS one)
 echo  CTRL+C to stop.
 echo.
 venv\Scripts\python.exe -m app.server.main

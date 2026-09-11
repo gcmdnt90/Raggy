@@ -1,0 +1,118 @@
+{
+  "_readme": "Machine-readable run blocks for Banco, keyed by beat id. The prompt TEXT is never here - it lives in demo-prompts.json, vendored from the deck (docs/adr/0001). This file holds only what a program needs in order to execute a beat: how many panes, which kind of model source each pane wants, the sampling parameters the room must see, and which file is pasted in. Merged over the demo database at load time by app/server/runs.py, so the vendored copy stays byte-identical to its pin. See docs/adr/0003.",
+  "version": 1,
+  "updated": "2026-09-09",
+  "_roles_note": "A pane asks for a ROLE, never a named provider. 'primary' and 'secondary' are two different API providers; 'local' is Ollama. The profile chosen at first run binds roles to concrete providers, which is what lets a missing source degrade a beat to replay instead of removing it (PROJECT.md, Configuration model). A run block that named 'anthropic' would break the offline profile and could not degrade.",
+  "_temperature_note": "Temperature is stated explicitly on every pane because the room has to see it - that is objective 2, and it is why m1-p3 was a dead branch on consumer products. The value is data, not code: change it here.",
+  "beats": {
+    "m1-p1": {
+      "mode": "panes",
+      "teaches": "Sampling variance, and that fields absent from the source get filled anyway.",
+      "panes": [
+        {
+          "pane": 0,
+          "role": "primary",
+          "label": "A - run 1",
+          "temperature": 1.0
+        },
+        {
+          "pane": 1,
+          "role": "primary",
+          "label": "A - run 2",
+          "temperature": 1.0
+        },
+        {
+          "pane": 2,
+          "role": "secondary",
+          "label": "B - run 1",
+          "temperature": 1.0
+        },
+        {
+          "pane": 3,
+          "role": "secondary",
+          "label": "B - run 2",
+          "temperature": 1.0
+        }
+      ],
+      "_panes_note": "Two samples from each of two sources, because this beat teaches two things at once: the same model disagrees with itself (panes 0 vs 1, 2 vs 3), and two models disagree with each other (A vs B). PROJECT.md records D1 as only 'partly' local-capable for exactly this reason - sampling works with one source, cross-source disagreement does not.",
+      "inputs": [
+        {
+          "paste_file": "demo/m4-grezzi.md",
+          "replaces": "[PASTE RAW NOTES]",
+          "identical_across_panes": true
+        }
+      ],
+      "produces": "demo/catena/d1-bozze.md",
+      "requires_sources": 2,
+      "degrades_to": "replay"
+    },
+    "m1-p2": {
+      "mode": "panes",
+      "teaches": "Asked for its source, the model either admits it inferred the value or points at a passage that is not there.",
+      "continues": "m1-p1",
+      "_continues_note": "The deck says 'the same chat, right after'. Each pane carries its own m1-p1 exchange forward as conversation history, so pane 2 is asked about what pane 2 wrote. Restarting the conversation here would destroy the beat: there would be no prior entry to interrogate.",
+      "panes": [
+        {
+          "pane": 0,
+          "role": "primary",
+          "label": "A - run 1",
+          "temperature": 1.0
+        },
+        {
+          "pane": 1,
+          "role": "primary",
+          "label": "A - run 2",
+          "temperature": 1.0
+        },
+        {
+          "pane": 2,
+          "role": "secondary",
+          "label": "B - run 1",
+          "temperature": 1.0
+        },
+        {
+          "pane": 3,
+          "role": "secondary",
+          "label": "B - run 2",
+          "temperature": 1.0
+        }
+      ],
+      "inputs": [],
+      "requires_sources": 2,
+      "degrades_to": "replay"
+    }
+  },
+  "_unblocked": {
+    "m1-p3": "Temperature, felt not explained. PROJECT.md objective 4 requires this beat to become live, and Banco is the first surface that can set temperature at all. Unresolved: the prompt text currently asks for two registers in ONE response, which is a workaround for products that hide temperature - running it as one prompt across panes at different temperatures changes what the beat teaches, and prompt text is AGENTS.md rule 5 and section 7 territory. No run block until that is decided.",
+    "m1-p4": "ARCHIVE, status 'library'. Aged out September 2026 and kept as documentation of how models changed (AGENTS.md rule 7). Deliberately has no run block.",
+    "m2-p1": "Lands in M2, 'the demonstrations that need no agent' (PROJECT.md). No run block yet. Two judges over D1's four drafts: the panes are two sources judging one pasted input, which inverts D1's shape (one input per pane, not one input to all).",
+    "m2-p2": "Lands in M2, 'the demonstrations that need no agent' (PROJECT.md). No run block yet. Needs a thinking budget as a pane parameter - declared in the schema, never yet exercised, and the mechanism D2 teaches is precisely that deliberation is a budget and not a switch.",
+    "m2-p3": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
+    "m2-p4": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
+    "m2-p5": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
+    "m3-p1": "Lands in M2, 'the demonstrations that need no agent' (PROJECT.md). No run block yet. All three rungs in one beat: no documents, all documents, retrieved documents. Rung 2 is the one no vendor product can be made to show, so it is the reason D3 is here at all.",
+    "m3-p2": "Lands in M2, 'the demonstrations that need no agent' (PROJECT.md). No run block yet. Retrieved chunks have to arrive as structured run output, not as text a model claims to have read.",
+    "m3-p6": "Lands in M2, 'the demonstrations that need no agent' (PROJECT.md). No run block yet.",
+    "m3-p5": "Lands in M2, 'the demonstrations that need no agent' (PROJECT.md). No run block yet. Dead branch: announced as dead only after it runs (CONTEXT.md).",
+    "m3-p3": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
+    "m3-p4": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
+    "m4-p1": "D4 waits for M5. PROJECT.md keeps D4 running in Cowork as a temporary bridge through M2, although beats 1-6 need no agent loop and could land earlier - decide when M2 closes. This beat reopens D1's output rather than re-running it.",
+    "m4-p2": "D4 waits for M5; see m4-p1. Beats 1-6 need no agent loop.",
+    "m4-p3": "D4 waits for M5; see m4-p1. Beats 1-6 need no agent loop.",
+    "m4-p4": "D4 waits for M5; see m4-p1. Beats 1-6 need no agent loop.",
+    "m4-p5": "D4 waits for M5; see m4-p1. Dead branch - a real connector call.",
+    "m4-p6": "D4 waits for M5; see m4-p1. Beats 1-6 need no agent loop.",
+    "m4-p7": "Needs the agent loop: M5. list_dir / read_file / write_file over one sandboxed folder, tool calls on screen, and a permission prompt that is itself teaching material.",
+    "m4-p8": "Needs the agent loop: M5. Run as a verification the room performs together, never as a reveal (PROJECT.md, 'Banco does not rely on surprise').",
+    "m4-p9": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
+    "m4-p10": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
+    "m4-p11": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
+    "m5-p5": "Lands in M2, 'the demonstrations that need no agent' (PROJECT.md). No run block yet. D5-A is the data path. It cannot be built before the egress indicator is real: without it the network-off gesture proves nothing, because the room never saw anything leave (invariant 4).",
+    "m5-p1": "D5-B needs the agent loop: M5. Until then it runs in Cowork as the temporary bridge PROJECT.md describes.",
+    "m5-p2": "Lands in M2, 'the demonstrations that need no agent' (PROJECT.md). No run block yet. D5-C, cold identification - confidently wrong attribution.",
+    "m5-p3": "Lands in M2, 'the demonstrations that need no agent' (PROJECT.md). No run block yet. D5-C, the disciplined prompt.",
+    "m5-p6": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
+    "m5-p4": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design."
+  },
+  "_unblocked_note": "Every beat in the demo database that Banco cannot yet execute, and why. tests/test_run_blocks.py fails if an active beat appears in neither this map nor 'beats', so 'the demo exists but Banco cannot run it' cannot go unnoticed - which is the condition Banco was built to end."
+}

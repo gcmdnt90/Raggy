@@ -1,13 +1,109 @@
 <!doctype html>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Banco — stage console</title>
 <link rel="stylesheet" href="/static/shared/base.css">
+<link rel="stylesheet" href="/static/console/console.css">
 
-<!-- NEVER PROJECTED. This surface may show configuration state and trainer
-     material. It must require authentication before M4 ships. -->
+<!-- THE STAGE CONSOLE. Never projected.
+     This is the only surface allowed to touch credentials. Keys are write-only:
+     nothing here ever renders a stored key, masked or otherwise. See AGENTS.md
+     rule 2 and PROJECT.md invariant 1. -->
 
-<h1>Stage console</h1>
-<p>Pre-flight, providers, sector, chain files, recordings.</p>
+<header id="bar">
+  <span class="brand">Banco</span>
+  <span class="where">stage console — not for the projector</span>
+  <span id="profile" class="chip"></span>
+  <a id="to-harness" class="chip link" href="/harness" target="_blank" rel="noopener" hidden>
+    open the harness →
+  </a>
+</header>
 
-<!-- TODO(M1): provider and profile configuration (write-only secrets). -->
-<!-- TODO(M4): pre-flight checklist with pass/fail per item. -->
+<p id="unprotected" class="alert" hidden>
+  This console has no password. Anything running on this machine can reach it.
+  Set one under <strong>Access</strong> below.
+</p>
+
+<main>
+  <section class="card" id="keys-card">
+    <h2>Model sources</h2>
+    <p class="lead">
+      At least one is required; two make every pane of D1 live. Keys are stored
+      in <code>.env</code> and never displayed again — leave a field blank to
+      keep what is already there.
+    </p>
+
+    <form id="keys">
+      <div class="row" data-provider="anthropic">
+        <label for="anthropic">Anthropic</label>
+        <span class="state" id="state-anthropic"></span>
+        <input id="anthropic" name="anthropic_api_key" type="password"
+               autocomplete="off" spellcheck="false" placeholder="sk-ant-…">
+      </div>
+      <div class="row" data-provider="openai">
+        <label for="openai">OpenAI</label>
+        <span class="state" id="state-openai"></span>
+        <input id="openai" name="openai_api_key" type="password"
+               autocomplete="off" spellcheck="false" placeholder="sk-…">
+      </div>
+      <div class="row" data-provider="google">
+        <label for="google">Google</label>
+        <span class="state" id="state-google"></span>
+        <input id="google" name="google_api_key" type="password"
+               autocomplete="off" spellcheck="false" placeholder="AIza…">
+      </div>
+
+      <h3>Access</h3>
+      <div class="row">
+        <label for="admin">Console password</label>
+        <span class="state" id="state-admin"></span>
+        <input id="admin" name="admin_password" type="password"
+               autocomplete="new-password" placeholder="choose one">
+      </div>
+
+      <button type="submit">Save</button>
+      <span id="saved" class="note"></span>
+    </form>
+  </section>
+
+  <section class="card" id="ollama-card">
+    <h2>Local model — Ollama</h2>
+    <p class="lead" id="ollama-summary">checking…</p>
+
+    <div class="row">
+      <label for="ollama-url">Address</label>
+      <span class="state" id="state-ollama"></span>
+      <input id="ollama-url" name="ollama_base_url" placeholder="http://localhost:11434">
+    </div>
+
+    <h3>Installed</h3>
+    <ul id="ollama-models" class="list"><li class="note">—</li></ul>
+
+    <h3>Recommended for this machine</h3>
+    <ul id="ollama-recommended" class="list"><li class="note">—</li></ul>
+
+    <pre id="pull-log" class="log" hidden></pre>
+  </section>
+
+  <section class="card" id="checks-card">
+    <h2>Before the lesson</h2>
+    <p class="lead">
+      Everything below is read from this machine. The live check calls each
+      configured source once — it is the only line that can tell a working key
+      from a stored one.
+    </p>
+    <button id="run-check" type="button">Run the full check</button>
+    <span id="check-note" class="note"></span>
+    <ul id="checks" class="list"></ul>
+    <ul id="live" class="list"></ul>
+    <button id="reset-transcripts" type="button" class="secondary">
+      Forget rehearsal transcripts
+    </button>
+    <p class="note">
+      A beat that continues an earlier one interrogates what its pane said before.
+      After a dry run those answers are still in memory.
+    </p>
+  </section>
+</main>
+
+<script src="/static/console/console.js"></script>

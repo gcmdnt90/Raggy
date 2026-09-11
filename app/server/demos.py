@@ -24,7 +24,20 @@ TRAINER_FIELDS = {
     "watch_for", "watch_for_it",
     "note", "note_it",
     "limits", "limits_it",
+    # `requires` is the set-up checklist for whoever prepares the room. Confirmed
+    # trainer-facing on 2026-09-09: m4-p8's value names `_perito/ground-truth.csv`,
+    # which PROJECT.md invariant 1 forbids the harness from rendering, and the
+    # field had been reaching it. It belongs to the stage console's pre-flight.
+    "requires", "requires_it",
 }
+
+# Client fields that must never be substituted into anything the harness
+# renders. PROJECT.md invariant 1 makes the client's name confidential, and the
+# substitution map *is* the sector's client block - so a prompt containing
+# `{{name}}` would expand to a real client's name on a projected surface, in
+# front of a different client. Today no prompt uses it; this makes that a
+# property of the code rather than a property of nobody having written it yet.
+CONFIDENTIAL_CLIENT_FIELDS = {"name", "name_it"}
 
 _PLACEHOLDER = re.compile(r"\{\{([A-Za-z0-9_]+)\}\}")
 
@@ -101,7 +114,8 @@ def resolve_demo(demo_id: str, sector: str) -> dict:
     sec = next((s for s in db.get("sectors", []) if s["id"] == sector), None)
     if sec is None:
         raise KeyError(sector)
-    client = sec.get("client", {})
+    raw_client = sec.get("client", {})
+    client = {k: v for k, v in raw_client.items() if k not in CONFIDENTIAL_CLIENT_FIELDS}
 
     demo = next((d for d in db.get("demos", []) if d.get("id") == demo_id), None)
     if demo is None:
@@ -127,7 +141,33 @@ def resolve_demo(demo_id: str, sector: str) -> dict:
             return _substitute(node, client)
         return node
 
-    return resolve(demo)
+    resolved = resolve(demo)
+    _assert_no_client_name(resolved, raw_client)
+    return resolved
+
+
+def _assert_no_client_name(resolved: dict, client: dict) -> None:
+    """Refuse to hand the harness anything containing the client's name.
+
+    Withholding the name from the substitution map stops `{{name}}` expanding.
+    It does not stop someone writing the name straight into a prompt, which is
+    how this would actually happen. So the resolved result is checked too.
+
+    This raises rather than redacting. A demonstration that fails to start is
+    recoverable in the room; a real client's name on a projected screen in front
+    of a different client is not. The stage console's pre-flight should run this
+    for every demo and sector so it can never surface mid-lesson.
+    """
+    name = (client.get("name") or "").strip()
+    if not name:
+        return
+    blob = json.dumps(resolved, ensure_ascii=False)
+    if name in blob:
+        raise ValueError(
+            "Refusing to render demo content containing the client name "
+            f"{name!r}: PROJECT.md invariant 1. Move it to a trainer field or "
+            "remove it from the prompt in the deck."
+        )
 
 
 # TODO(M1): a `run` block per beat — panes, provider/model per pane, temperature,

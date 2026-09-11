@@ -11,11 +11,16 @@ file covers only what is local to this codebase.
 
 ## Terms
 
-- **Harness**: the projected surface, served at `/`. Everything it renders is on
-  a screen in front of a client's staff.
+- **Harness**: the projected surface, served at `/harness`. Everything it renders
+  is on a screen in front of a client's staff. It is the only route that may be
+  projected; `/` and `/console` carry key fields.
 - **Stage console**: the authenticated surface at `/console`, used for
   pre-flight, configuration, prompt inspection, indexing and logs. Never
-  projected. It is a route on the same server, not a second application.
+  projected. It is a route on the same server, not a second application, and it
+  is where Banco opens: `/` redirects here on every launch.
+- **Pre-flight**: the check the console runs before a lesson — sources reachable,
+  models pulled, chain files present, recordings fresh. It runs every time, not
+  only on a machine that looks unconfigured.
 - **Trainer field**: a demo-database field written for the trainer and never for
   the room — `lands`, `watch_for`, any `note`. Stripped server-side in
   `app/server/demos.py`.
