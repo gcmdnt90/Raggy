@@ -22,12 +22,16 @@ window.BancoStrings.it = {
   "harness.current_sequence": "Sequenza corrente",
   "harness.beats_aria": "beat",
   "harness.prompt_summary": "il prompt come inviato",
+  "harness.prompt_summary_template": "il prompt — materiale non ancora incollato",
   "harness.run": "Esegui",
 
   // ── harness, built in JavaScript ──────────────────────────────────────
   "harness.no_source_configured": "nessuna fonte modello configurata",
   "harness.beat_panes": "{count} pannelli",
   "harness.beat_no_panes": "—",
+  "harness.context_all": "tutti i documenti — {chars} caratteri in contesto",
+  "harness.context_retrieved": "{count} passaggi recuperati",
+  "harness.passage_score": "punteggio {score}",
   "harness.not_executable": "non eseguibile",
   "harness.run_continues": "Esegui — continua {beat}",
   "harness.mode_live": "LIVE",

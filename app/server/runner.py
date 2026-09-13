@@ -75,6 +75,13 @@ def _pane_payload(pane: Pane, prepared=None, lang: str | None = None) -> dict:
         "unavailable": pane.unavailable,
         "sent": {},
         "dropped": {},
+        # D3's rung, and the evidence for it. `context_chars` is the measure
+        # that makes rung 2 legible without projecting the whole corpus: the
+        # room sees that this pane carried eleven thousand characters of house
+        # documents and the one beside it carried none.
+        "context": pane.context,
+        "context_chars": len(pane.context_text),
+        "passages": list(pane.passages),
     }
     if pane.source is not None:
         payload |= {
@@ -105,13 +112,23 @@ def _messages_for(plan: RunPlan, pane: Pane) -> list[LLMMessage]:
     `continues` is not cosmetic: m1-p2 asks the model where a value in *its own*
     previous answer came from. Sending that question without the prior exchange
     would ask about nothing, and the beat would teach nothing.
+
+    D3's three panes send the *same* prompt and differ only in what stands in
+    front of it: nothing, every document, or the retrieved passages. The
+    documents go in the user turn rather than in the system prompt, because
+    that is what a person does in the room — they paste the material above the
+    question — and because it keeps the one thing that differs between the
+    rungs in the one place the room is already looking.
     """
     history: list[LLMMessage] = []
     if plan.continues:
         history = list(
             _TRANSCRIPTS.get(transcript_key(plan.sector, plan.continues, pane.pane), [])
         )
-    return [*history, LLMMessage(role="user", content=plan.prompt)]
+    content = plan.prompt
+    if pane.context_text:
+        content = f"{pane.context_text}\n\n---\n\n{plan.prompt}"
+    return [*history, LLMMessage(role="user", content=content)]
 
 
 def _prepare_pane(plan: RunPlan, pane: Pane, max_tokens: int, credentials: dict[str, dict]):

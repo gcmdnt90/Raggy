@@ -161,7 +161,12 @@ function selectBeat(id, { keepPanes = false } = {}) {
 
   $("#detail").hidden = false;
   $("#teaches").textContent = beat.run.teaches || "";
-  $("#prompt").textContent = beat.text || "";
+  // `beat.run.prompt` and never `beat.text`: the bare field is the English one
+  // (the `_it` suffix is what `pick` knows about), and it is the template, with
+  // the paste placeholder still in it. Both halves showed on a projected screen
+  // under a label that says "as sent". The server composes this now.
+  $("#prompt").textContent = beat.run.prompt || "";
+  setPromptSummary(beat.run.prompt_complete);
   $("#prompt-box").hidden = false;
 
   const blocked = $("#blocked");
@@ -178,6 +183,18 @@ function selectBeat(id, { keepPanes = false } = {}) {
   if (keepPanes) return;
   $("#panes").innerHTML = "";
   $("#banner").hidden = true;
+}
+
+// The panel's label is a claim about the text under it, so it follows the text.
+// `data-i18n` is rewritten rather than bypassed: the language switch rebuilds
+// every marked node from the catalogue, and a label set only here would be
+// replaced by whichever key the markup still carried.
+function setPromptSummary(complete) {
+  const key = complete ? "harness.prompt_summary" : "harness.prompt_summary_template";
+  const summary = $("#prompt-summary");
+  if (!summary) return;
+  summary.dataset.i18n = key;
+  summary.textContent = t(key);
 }
 
 // ── language ───────────────────────────────────────────────────────────────
@@ -274,6 +291,7 @@ function handleEvent({ name, data }) {
 
 function onPlan(plan) {
   $("#prompt").textContent = plan.prompt;      // the prompt as actually sent
+  setPromptSummary(true);                      // and now the label is earned
   if (plan.teaches) $("#teaches").textContent = plan.teaches;
   // Live is announced as loudly as replay. If only replay were labelled, a
   // room would have to notice an absence to know what it is watching.
@@ -295,11 +313,47 @@ function onPlan(plan) {
         `<span class="pane-state" data-state="waiting">${escapeHtml(t("harness.pane_waiting"))}</span>` +
       `</header>` +
       `<div class="meta mono">${paneMeta(pane)}</div>` +
+      contextNode(pane) +
       `<div class="out"></div>`;
     host.append(card);
   }
 
   if (plan.degraded) showBanner(t("harness.degraded"), "warn");
+}
+
+// D3's rung, on the pane that stands on it. Objective 2 says the room can see
+// "over which retrieved passages"; this is that sentence made literal.
+//
+// Rung 2 gets a measure and not the text. Projecting eleven thousand characters
+// of house documents teaches nobody anything, whereas "every document — 11.240
+// characters" next to a pane that says "no documents" is the whole rung in one
+// line. Rung 3 gets the passages themselves, each with its file and score,
+// because checking them against the answer is what the beat asks the room to do.
+function contextNode(pane) {
+  if (!pane.context || pane.context === "none") return "";
+
+  const chars = new Intl.NumberFormat(i18n.lang).format(pane.context_chars || 0);
+
+  if (pane.context === "all") {
+    return `<p class="context mono" data-context="all">` +
+      `${escapeHtml(t("harness.context_all", { chars }))}</p>`;
+  }
+
+  const passages = pane.passages || [];
+  if (!passages.length) return "";
+
+  const items = passages.map((p) =>
+    `<li>` +
+      `<span class="passage-source mono">${escapeHtml(p.source)}</span>` +
+      `<span class="passage-score mono">${escapeHtml(t("harness.passage_score", {
+        score: Number(p.score).toFixed(2) }))}</span>` +
+      `<p class="passage-text">${escapeHtml(p.text)}</p>` +
+    `</li>`).join("");
+
+  return `<details class="context passages" data-context="retrieved" open>` +
+    `<summary>${escapeHtml(t("harness.context_retrieved", { count: passages.length }))}</summary>` +
+    `<ol class="passage-list">${items}</ol>` +
+    `</details>`;
 }
 
 // Provider, model, temperature, thinking budget and destination — the mechanism

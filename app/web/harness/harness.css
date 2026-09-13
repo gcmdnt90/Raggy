@@ -227,3 +227,37 @@ main {
   .beat-heading { grid-template-columns: 1fr; }
   #run { grid-column: 1; grid-row: auto; width: 100%; }
 }
+
+/* ── D3's ladder: what a pane had in its context ───────────────────────────
+   Objective 2 puts "over which retrieved passages" on the projected surface.
+   Rung 2 gets one measured line, rung 3 gets the passages themselves: a room
+   cannot check an answer against a number, and cannot read eleven thousand
+   characters off a wall. */
+.pane .context {
+  margin: 0 0 .6rem;
+  font-size: .82em;
+  border-left: 3px solid var(--rule, #3a3a3a);
+  padding-left: .6rem;
+}
+.pane .context[data-context="all"] { opacity: .8; }
+.pane details.passages > summary {
+  cursor: pointer;
+  opacity: .85;
+  margin-bottom: .4rem;
+}
+.pane .passage-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: .5rem;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+.pane .passage-list li { line-height: 1.35; }
+.pane .passage-source { opacity: .9; }
+.pane .passage-score { opacity: .6; margin-left: .5rem; }
+.pane .passage-text {
+  margin: .15rem 0 0;
+  white-space: pre-wrap;
+  opacity: .95;
+}

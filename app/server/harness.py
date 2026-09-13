@@ -15,22 +15,32 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.config import get_settings
+from app.i18n import DEFAULT_LANGUAGE, localized
 from app.server import preflight, runner, sources
 from app.server.demos import list_demos, resolve_demo, sectors
+from app.server.runs import build_prompt, run_block, unblocked_reason
 from app.server.runs import plan as build_plan
-from app.server.runs import run_block, unblocked_reason
 
 router = APIRouter()
 PAGE = Path(__file__).resolve().parent.parent / "web" / "harness" / "index.html"
 
 
 class RunRequest(BaseModel):
-    """What the harness asks to run. Never a prompt - only which beat."""
+    """What the harness asks to run. Never a prompt - only which beat.
+
+    `language` defaults to Banco's default rather than to English. The page
+    always sends the field, so the default is only reached by something that
+    is not the page - a script, a test, a future console rehearsal button -
+    and until 2026-09-13 that default was `"en"`, which would have run an
+    Italian lesson's beat against the English prompt. AGENTS.md rule 9 says
+    Italian first; there is no second place in Banco where the default is
+    anything else.
+    """
 
     demo_id: str = Field(min_length=1, max_length=32)
     beat_id: str = Field(min_length=1, max_length=64)
     sector: str = Field(min_length=1, max_length=64)
-    language: str = Field(default="en", pattern="^(en|it)$")
+    language: str = Field(default=DEFAULT_LANGUAGE, pattern="^(en|it)$")
 
 
 @router.get("/harness")
@@ -80,14 +90,54 @@ def demos() -> list[dict]:
     return list_demos()
 
 
+def _prompt_preview(
+    beat: dict, block: dict | None, sector: str, lang: str | None
+) -> tuple[str, bool]:
+    """The prompt this beat will send, composed before anyone presses Run.
+
+    The harness panel is labelled *il prompt come inviato* and until 2026-09-13
+    it held the template: the paste placeholder was only expanded at run time,
+    inside `runs.build_prompt`, and reached the page on the `plan` event. So a
+    room looking at that panel before the run read `[PASTE RAW NOTES]` where
+    the notes go, under a label promising it was what got sent. Objective 2
+    says the prompt is visible *as sent*; a template under that label is the
+    panel making a false claim on a projected screen.
+
+    `build_prompt` is pure and reads the same files the run reads, so the
+    preview cannot disagree with what is sent - which is the same argument the
+    capability check makes in `docs/specs/model-control.md`: answer by building
+    the thing, not by consulting a second description of it.
+
+    Returns the text and whether it is complete. A beat Banco cannot run sends
+    nothing, and a sector whose pack was never generated has no file to paste;
+    both return the localized template and False, and the page relabels rather
+    than claiming a placeholder is what leaves the machine.
+    """
+    template = localized(beat, "text", lang, default="")
+    if block is None:
+        return template, False
+    try:
+        return build_prompt(beat, block, sector, language=lang or DEFAULT_LANGUAGE), True
+    except (FileNotFoundError, ValueError):
+        # Missing pack, or a path that escapes the sector. Pre-flight is where
+        # that gets reported; here it must not take the whole demo list down.
+        return template, False
+
+
 @router.get("/api/demos/{demo_id}")
-def demo(demo_id: str, sector: str) -> dict:
+def demo(demo_id: str, sector: str, lang: str | None = None) -> dict:
     """One demo with placeholders resolved for `sector`. No trainer fields.
 
     Each beat is annotated with whether Banco can execute it and, if not, the
     reason recorded in `run-blocks.json`. The trainer should never have to guess
     which beats are live, and the room should never watch one be attempted and
     silently do nothing.
+
+    `lang` is not decoration. `teaches` and a blocked beat's reason are composed
+    here from `run-blocks.json`, and the page has always asked for them with
+    `?lang=` - but this signature did not accept the parameter, so FastAPI
+    dropped it and both came back English into an Italian lesson. Absent means
+    Italian, as everywhere else (AGENTS.md rule 9).
     """
     try:
         resolved = resolve_demo(demo_id, sector)
@@ -96,12 +146,15 @@ def demo(demo_id: str, sector: str) -> dict:
 
     for beat in resolved.get("prompts", []):
         block = run_block(beat.get("id"))
+        prompt, complete = _prompt_preview(beat, block, sector, lang)
         beat["run"] = {
             "runnable": block is not None,
             "panes": len(block.get("panes", [])) if block else 0,
-            "teaches": block.get("teaches") if block else None,
+            "teaches": localized(block, "teaches", lang),
             "continues": block.get("continues") if block else None,
-            "reason": None if block else unblocked_reason(beat.get("id")),
+            "reason": None if block else unblocked_reason(beat.get("id"), lang),
+            "prompt": prompt,
+            "prompt_complete": complete,
         }
     return resolved
 

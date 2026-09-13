@@ -3,7 +3,7 @@ catena: D3
 prodotto_da: D3
 consumato_da: D4
 file: d3-fonte.md
-generato: 2026-09-03
+generato: 2026-09-12
 ---
 
 # D3 — Il criterio esiste già, ed è scritto

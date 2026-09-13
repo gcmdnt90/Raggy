@@ -294,6 +294,35 @@ CATALOG: dict[str, dict[str, str]] = {
         "it": "pannello {index}",
         "en": "pane {index}",
     },
+    # ── D3's ladder: the sector's documents, and how a pane gets them ─────
+    "corpus.escapes_sector": {
+        "it": "Cartella dei documenti fuori dal settore: {path}",
+        "en": "Document folder outside the sector: {path}",
+    },
+    "corpus.empty": {
+        "it": "Nessun documento da indicizzare per il settore «{sector}».",
+        "en": "No documents to index for sector '{sector}'.",
+    },
+    "corpus.index_missing": {
+        "it": "L'indice del settore «{sector}» non è stato costruito. "
+              "Costruiscilo dalla console prima della lezione: "
+              "python scripts/build_index.py --settore {sector}",
+        "en": "The index for sector '{sector}' has not been built. Build it "
+              "from the console before the lesson: "
+              "python scripts/build_index.py --settore {sector}",
+    },
+    "corpus.context_heading": {
+        "it": "PASSAGGI RECUPERATI DAI DOCUMENTI DELLA CASA:",
+        "en": "PASSAGES RETRIEVED FROM THE HOUSE DOCUMENTS:",
+    },
+    "corpus.all_heading": {
+        "it": "DOCUMENTI DELLA CASA, PER INTERO:",
+        "en": "THE HOUSE DOCUMENTS, IN FULL:",
+    },
+    "corpus.no_documents": {
+        "it": "Il settore «{sector}» non ha documenti da mettere in contesto.",
+        "en": "Sector '{sector}' has no documents to put in context.",
+    },
     # ── the handover files a run writes ───────────────────────────────────
     "chain.written_by": {
         "it": "Scritto da Banco a partire da {beat_id} il {stamp}.",

@@ -3,7 +3,7 @@ catena: D1
 prodotto_da: D1
 consumato_da: D2, D4
 file: d1-bozze.md
-generato: 2026-09-03
+generato: 2026-09-12
 ---
 
 # D1 — Quattro bozze della stessa scheda di impianto

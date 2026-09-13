@@ -31,7 +31,7 @@ Nessuna scheda può essere pubblicata se manca anche uno solo dei campi seguenti
 - 3.3 I lotti in grado SM-5 non possono essere presentati in copertina di catalogo.
 - 3.4 I lotti invenduti in asta precedente vanno ripresentati con il grado rivalutato e la dicitura RIPRESENTATO, e non possono comparire in copertina di catalogo.
 - 3.5 Le fotografie di lotti non ancora validati non escono dall'archivio interno.
-- 3.6 Ogni scheda riporta il nome dell'operatore che l'ha redatta e la data di redazione.
+- 3.6 Ogni scheda riporta il codice dell'operatore che l'ha redatta e la data di redazione.
 
 ## 4. Responsabilità
 

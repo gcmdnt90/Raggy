@@ -1,7 +1,7 @@
 {
   "_readme": "Machine-readable run blocks for Banco, keyed by beat id. The prompt TEXT is never here - it lives in demo-prompts.json, vendored from the deck (docs/adr/0001). This file holds only what a program needs in order to execute a beat: how many panes, which kind of model source each pane wants, the sampling parameters the room must see, and which file is pasted in. Merged over the demo database at load time by app/server/runs.py, so the vendored copy stays byte-identical to its pin. See docs/adr/0003.",
   "version": 1,
-  "updated": "2026-09-12",
+  "updated": "2026-09-13",
   "_roles_note": "A pane asks for a ROLE, never a named provider. 'primary' and 'secondary' are two different API providers; 'local' is Ollama. The profile chosen at first run binds roles to concrete providers, which is what lets a missing source degrade a beat to replay instead of removing it (PROJECT.md, Configuration model). A run block that named 'anthropic' would break the offline profile and could not degrade.",
   "_teaches_params_note": "The parameters a beat exists to expose. They are what a collapsed pane shows with no gesture; everything else sits behind the Info control (docs/specs/model-control.md §6). Absent or empty is legal and means \"nothing to foreground\" - the safe default, because a pane showing no parameter makes no claim about it. Every value must be one of Banco's four parameter names (temperature, max_tokens, system, think) and must actually be stated by a pane of that beat; tests/test_precedence.py fails otherwise.",
   "_temperature_note": "Temperature is stated explicitly on every pane because the room has to see it - that is objective 2, and it is why m1-p3 was a dead branch on consumer products. The value is data, not code: change it here.",
@@ -168,6 +168,106 @@
       ],
       "requires_sources": 1,
       "degrades_to": "replay"
+    },
+    "m3-p1": {
+      "mode": "panes",
+      "teaches": "The same question, three times, changing only what is in the context: nothing, every document, the retrieved passages.",
+      "teaches_it": "La stessa domanda, tre volte, cambiando solo che cosa c'e' nel contesto: niente, tutti i documenti, i passaggi recuperati.",
+      "_panes_note": "Three panes on ONE role, deliberately. The ladder is about the context and nothing else, so a second model would introduce a difference the beat does not want to explain. Objective 5: named by mechanism, never by brand.",
+      "corpus": {
+        "dir": "regole",
+        "top_k": 4
+      },
+      "panes": [
+        {
+          "pane": 0,
+          "role": "primary",
+          "context": "none",
+          "label": "rung 1 - no documents",
+          "label_it": "gradino 1 — nessun documento",
+          "temperature": 0.3
+        },
+        {
+          "pane": 1,
+          "role": "primary",
+          "context": "all",
+          "label": "rung 2 - all documents",
+          "label_it": "gradino 2 — tutti i documenti",
+          "temperature": 0.3
+        },
+        {
+          "pane": 2,
+          "role": "primary",
+          "context": "retrieved",
+          "label": "rung 3 - retrieved documents",
+          "label_it": "gradino 3 — documenti recuperati",
+          "temperature": 0.3
+        }
+      ],
+      "_produces_note": "No `produces`. Which of three rungs writes d3-fonte.md is a decision about the chain, not about this beat, and the shipped file is what D4 pastes tonight (invariant 3).",
+      "requires_sources": 1,
+      "degrades_to": "replay"
+    },
+    "m5-p2": {
+      "mode": "panes",
+      "teaches": "Asked cold, with no documents, the model attributes a catalogue reference confidently and wrongly.",
+      "teaches_it": "Interrogato a freddo, senza documenti, il modello attribuisce un riferimento di catalogo con sicurezza e sbagliando.",
+      "panes": [
+        {
+          "pane": 0,
+          "role": "primary",
+          "context": "none",
+          "label": "cold - no documents",
+          "label_it": "a freddo — nessun documento",
+          "temperature": 0.3
+        }
+      ],
+      "requires_sources": 1,
+      "degrades_to": "replay"
+    },
+    "m5-p3": {
+      "mode": "panes",
+      "teaches": "The same question again, in a new conversation, with the discipline written into the prompt: verified separated from inferred, confidence stated, gaps declared.",
+      "teaches_it": "La stessa domanda, in una conversazione nuova, con la disciplina scritta nel prompt: verificato separato da dedotto, confidenza dichiarata, lacune nominate.",
+      "restates": {
+        "demo": "m5",
+        "beat": "m5-p2"
+      },
+      "_restates_note": "NOT `continues`. The deck says 'same question, new conversation': the point is that the discipline is in the prompt, not in the model having been corrected. `restates` re-sends m5-p2's question ahead of this one and carries no transcript, so the model has never seen its own cold answer. Composed from two prompts that both already exist in the database; no prompt text lives here (ADR 0001, AGENTS.md rule 5).",
+      "panes": [
+        {
+          "pane": 0,
+          "role": "primary",
+          "context": "none",
+          "label": "the disciplined prompt",
+          "label_it": "il prompt disciplinato",
+          "temperature": 0.3
+        }
+      ],
+      "requires_sources": 1,
+      "degrades_to": "replay"
+    },
+    "m5-p5": {
+      "mode": "panes",
+      "teaches": "The same index and the same retrieved passages as D3's third rung, with the writing moved onto this machine: only who writes has changed.",
+      "teaches_it": "Lo stesso indice e gli stessi passaggi recuperati del terzo gradino di D3, con la scrittura spostata su questa macchina: e' cambiato solo chi scrive.",
+      "_role_note": "Role `local`, so with no Ollama this pane degrades to unavailable and D5-A is announced rather than silently answered by an API - which would invert exactly what the beat claims.",
+      "corpus": {
+        "dir": "regole",
+        "top_k": 4
+      },
+      "panes": [
+        {
+          "pane": 0,
+          "role": "local",
+          "context": "retrieved",
+          "label": "local - nothing leaves",
+          "label_it": "locale — non esce nulla",
+          "temperature": 0.3
+        }
+      ],
+      "requires_sources": 1,
+      "degrades_to": "replay"
     }
   },
   "_unblocked": {
@@ -176,7 +276,6 @@
     "m2-p3": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
     "m2-p4": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
     "m2-p5": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
-    "m3-p1": "Lands in M2, 'the demonstrations that need no agent' (PROJECT.md). No run block yet. All three rungs in one beat: no documents, all documents, retrieved documents. Rung 2 is the one no vendor product can be made to show, so it is the reason D3 is here at all.",
     "m3-p2": "Lands in M2, 'the demonstrations that need no agent' (PROJECT.md). No run block yet. Retrieved chunks have to arrive as structured run output, not as text a model claims to have read.",
     "m3-p6": "Lands in M2, 'the demonstrations that need no agent' (PROJECT.md). No run block yet.",
     "m3-p5": "Lands in M2, 'the demonstrations that need no agent' (PROJECT.md). No run block yet. Dead branch: announced as dead only after it runs (CONTEXT.md).",
@@ -193,10 +292,7 @@
     "m4-p9": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
     "m4-p10": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
     "m4-p11": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
-    "m5-p5": "Lands in M2, 'the demonstrations that need no agent' (PROJECT.md). No run block yet. D5-A is the data path. It cannot be built before the egress indicator is real: without it the network-off gesture proves nothing, because the room never saw anything leave (invariant 4).",
     "m5-p1": "D5-B needs the agent loop: M5. Until then it runs in Cowork as the temporary bridge PROJECT.md describes.",
-    "m5-p2": "Lands in M2, 'the demonstrations that need no agent' (PROJECT.md). No run block yet. D5-C, cold identification - confidently wrong attribution.",
-    "m5-p3": "Lands in M2, 'the demonstrations that need no agent' (PROJECT.md). No run block yet. D5-C, the disciplined prompt.",
     "m5-p6": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
     "m5-p4": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design."
   },
@@ -206,7 +302,6 @@
     "m2-p3": "stato 'library' — un beat alternativo o archiviato. Conservato di proposito (AGENTS.md regola 7); nessun run block per scelta.",
     "m2-p4": "stato 'library' — un beat alternativo o archiviato. Conservato di proposito (AGENTS.md regola 7); nessun run block per scelta.",
     "m2-p5": "stato 'library' — un beat alternativo o archiviato. Conservato di proposito (AGENTS.md regola 7); nessun run block per scelta.",
-    "m3-p1": "Arriva con M2, 'le dimostrazioni che non hanno bisogno di un agente' (PROJECT.md). Nessun run block per ora. Tutti e tre i gradini in un solo beat: nessun documento, tutti i documenti, i documenti recuperati. Il gradino 2 è quello che nessun prodotto commerciale può essere convinto a mostrare, ed è la ragione per cui D3 esiste.",
     "m3-p2": "Arriva con M2, 'le dimostrazioni che non hanno bisogno di un agente' (PROJECT.md). Nessun run block per ora. I passaggi recuperati devono arrivare come output strutturato dell'esecuzione, non come testo che un modello dichiara di aver letto.",
     "m3-p6": "Arriva con M2, 'le dimostrazioni che non hanno bisogno di un agente' (PROJECT.md). Nessun run block per ora.",
     "m3-p5": "Arriva con M2, 'le dimostrazioni che non hanno bisogno di un agente' (PROJECT.md). Nessun run block per ora. Ramo morto: annunciato come morto solo dopo che è stato eseguito (CONTEXT.md).",
@@ -223,14 +318,12 @@
     "m4-p9": "stato 'library' — un beat alternativo o archiviato. Conservato di proposito (AGENTS.md regola 7); nessun run block per scelta.",
     "m4-p10": "stato 'library' — un beat alternativo o archiviato. Conservato di proposito (AGENTS.md regola 7); nessun run block per scelta.",
     "m4-p11": "stato 'library' — un beat alternativo o archiviato. Conservato di proposito (AGENTS.md regola 7); nessun run block per scelta.",
-    "m5-p5": "Arriva con M2, 'le dimostrazioni che non hanno bisogno di un agente' (PROJECT.md). Nessun run block per ora. D5-A è il percorso dei dati. Non può essere costruito prima che l'indicatore di egress sia reale: senza, il gesto di staccare la rete non dimostra nulla, perché la stanza non ha mai visto uscire niente (invariante 4).",
     "m5-p1": "D5-B ha bisogno del loop agentico: M5. Fino ad allora gira in Cowork, il ponte temporaneo che PROJECT.md descrive.",
-    "m5-p2": "Arriva con M2, 'le dimostrazioni che non hanno bisogno di un agente' (PROJECT.md). Nessun run block per ora. D5-C, identificazione a freddo — un'attribuzione sbagliata con sicurezza.",
-    "m5-p3": "Arriva con M2, 'le dimostrazioni che non hanno bisogno di un agente' (PROJECT.md). Nessun run block per ora. D5-C, il prompt disciplinato.",
     "m5-p6": "stato 'library' — un beat alternativo o archiviato. Conservato di proposito (AGENTS.md regola 7); nessun run block per scelta.",
     "m5-p4": "stato 'library' — un beat alternativo o archiviato. Conservato di proposito (AGENTS.md regola 7); nessun run block per scelta."
   },
   "_unblocked_note": "Every beat in the demo database that Banco cannot yet execute, and why. tests/test_run_blocks.py fails if an active beat appears in neither this map nor 'beats', so 'the demo exists but Banco cannot run it' cannot go unnoticed - which is the condition Banco was built to end.",
   "_language_note": "Banco speaks Italian by default and English second. Every string in this file that reaches a surface carries both: the bare field is English and `<field>_it` is Italian, matching the convention of the vendored demo database. That is `teaches` / `teaches_it`, a pane's `label` / `label_it`, and the `_unblocked` / `_unblocked_it` maps. app/i18n.localized is the only code that knows the rule; nothing else may append '_it' to a field name. An untranslated entry falls back to English rather than disappearing, and tests/test_i18n.py reports which ones are still missing.",
-  "_inputs_note": "`replaces` is the placeholder in the English prompt and `replaces_it` the one in the Italian prompt. They are different strings — the deck writes '[PASTE RAW NOTES]' and '[INCOLLA APPUNTI GREZZI]' — so a single value would leave the pasted file unsubstituted in one language and send the model a literal placeholder. tests/test_i18n.py checks every input against the prompt it is meant to fill, in both languages."
+  "_inputs_note": "`replaces` is the placeholder in the English prompt and `replaces_it` the one in the Italian prompt. They are different strings — the deck writes '[PASTE RAW NOTES]' and '[INCOLLA APPUNTI GREZZI]' — so a single value would leave the pasted file unsubstituted in one language and send the model a literal placeholder. tests/test_i18n.py checks every input against the prompt it is meant to fill, in both languages.",
+  "_context_note": "D3's ladder. A pane may declare `context`: 'none' (the question alone), 'all' (every document in the sector's corpus, whole) or 'retrieved' (the passages this question pulled back). The beat's `corpus` block names the folder and how many passages rung 3 takes. Read by app/server/corpus.py, which roots every read on the sector and keeps one Chroma collection per sector. A rung that cannot be climbed makes that pane unavailable with the reason on it; it never falls back to another rung."
 }

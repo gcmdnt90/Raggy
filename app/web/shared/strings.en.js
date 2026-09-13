@@ -21,12 +21,16 @@ window.BancoStrings.en = {
   "harness.current_sequence": "Current sequence",
   "harness.beats_aria": "beats",
   "harness.prompt_summary": "prompt as sent",
+  "harness.prompt_summary_template": "the prompt — material not pasted yet",
   "harness.run": "Run",
 
   // ── harness, built in JavaScript ──────────────────────────────────────
   "harness.no_source_configured": "no model source configured",
   "harness.beat_panes": "{count} panes",
   "harness.beat_no_panes": "—",
+  "harness.context_all": "all documents — {chars} characters in context",
+  "harness.context_retrieved": "{count} retrieved passages",
+  "harness.passage_score": "score {score}",
   "harness.not_executable": "not executable",
   "harness.run_continues": "Run — continues {beat}",
   "harness.mode_live": "LIVE",

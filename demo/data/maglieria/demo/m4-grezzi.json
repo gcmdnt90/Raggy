@@ -1,0 +1,17 @@
+{
+  "specifica": "SPEC-2026-007",
+  "committente": "ufficio stile e sviluppo campionario",
+  "reparto_e_fase": "Rimaglio — rimaglio manuale dei pannelli",
+  "richiesta": "vedere l'avanzamento del rimaglio per commessa e per addetto a fine turno",
+  "capi_al_mese": 340,
+  "addetti_impattati": 10,
+  "modulo_e_versione": null,
+  "codice_cliente": null,
+  "tempo_standard_fase": null,
+  "classe_di_specifica": null,
+  "rilevazione": "RIL-2026-055",
+  "dato_riferito_a_voce": "circa 10 minuti a capo, detto dal capo reparto",
+  "da_sistemare_anche": "le commesse già chiuse dell'anno",
+  "criteri_accettazione": "«deve essere più veloce di adesso» — da riformulare",
+  "giorni_in_coda": 31
+}

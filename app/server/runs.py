@@ -79,6 +79,20 @@ class Pane:
     #: single argument to `prepare()`; `temperature` and `thinking` above are
     #: views onto it kept for the existing harness payload.
     params: dict = field(default_factory=dict, compare=False)
+    #: Which rung of D3's ladder this pane stands on: `none`, `all` or
+    #: `retrieved`. Every other beat in Banco is `none`, which is why the
+    #: default is the one that changes nothing.
+    context: str = "none"
+    #: The documents this pane puts in front of the question, already written.
+    #: Composed at plan time and not in the pane's own thread: retrieval is I/O
+    #: and a model load, the `plan` event carries it to the harness before any
+    #: token streams, and a failure surfaces before the run rather than halfway
+    #: through it.
+    context_text: str = ""
+    #: What rung 3 pulled back, as the harness renders it: source, score, text.
+    #: Empty on every other rung — a pane showing no passages makes no claim
+    #: about retrieval.
+    passages: tuple[dict, ...] = field(default_factory=tuple, compare=False)
 
     @property
     def runnable(self) -> bool:
@@ -200,8 +214,58 @@ def pane_params(spec: dict, source: ModelSource | None) -> dict:
     return params
 
 
+def pane_context(
+    spec: dict, block: dict, sector: str | None, query: str, lang: str | None
+) -> tuple[str, str, tuple[dict, ...], str | None]:
+    """What this pane puts in front of the question — D3's three rungs.
+
+    Returns `(strategy, text, passages, unavailable)`. The last one is the
+    point: a rung that cannot be climbed makes *that pane* unavailable and
+    leaves the others standing, so the room still sees the ladder and is told
+    which rung did not run. Falling back to another rung would be the harness
+    misrepresenting its own mechanism, which invariant 2 forbids more strongly
+    than it forbids an empty pane.
+    """
+    strategy = spec.get("context", "none")
+    if strategy == "none" or sector is None:
+        return "none", "", (), None
+
+    from app.server import corpus
+
+    folder = (block.get("corpus") or {}).get("dir")
+    try:
+        if strategy == "all":
+            body = corpus.all_documents_text(sector, folder)
+            if not body:
+                return strategy, "", (), t("corpus.no_documents", lang, sector=sector)
+            return strategy, f"{t('corpus.all_heading', lang)}\n\n{body}", (), None
+
+        if strategy == "retrieved":
+            top_k = int((block.get("corpus") or {}).get("top_k", corpus.DEFAULT_TOP_K))
+            found = corpus.retrieve(sector, query, top_k)
+            if not found:
+                return strategy, "", (), t("corpus.no_documents", lang, sector=sector)
+            return (
+                strategy,
+                corpus.context_block(found, lang),
+                tuple(p.as_dict() for p in found),
+                None,
+            )
+    except (LookupError, FileNotFoundError, ValueError) as exc:
+        # Named on the pane, in the room's language, instead of a 500 that
+        # takes the whole beat down with it.
+        return strategy, "", (), str(exc)
+
+    return "none", "", (), None
+
+
 def bind_panes(
-    block: dict, sources: dict[str, ModelSource], *, lang: str | None = None
+    block: dict,
+    sources: dict[str, ModelSource],
+    *,
+    lang: str | None = None,
+    sector: str | None = None,
+    query: str = "",
 ) -> tuple[Pane, ...]:
     """Bind each pane's role to a configured source, or mark it unavailable.
 
@@ -216,6 +280,9 @@ def bind_panes(
         role = spec.get("role", "primary")
         source = sources.get(role)
         params = pane_params(spec, source)
+        strategy, context_text, passages, context_problem = pane_context(
+            spec, block, sector, query, lang
+        )
         panes.append(
             Pane(
                 pane=spec.get("pane", index),
@@ -229,8 +296,15 @@ def bind_panes(
                 temperature=float(params.get("temperature", 0.3)),
                 thinking=params.get("think"),
                 source=source,
-                unavailable=None if source else unavailable_no_source(lang),
+                # No source first: a pane with nothing to run on cannot be
+                # described as a rung that failed to load its documents.
+                unavailable=(
+                    unavailable_no_source(lang) if not source else context_problem
+                ),
                 params=params,
+                context=strategy,
+                context_text=context_text,
+                passages=passages,
             )
         )
     return tuple(panes)
@@ -318,6 +392,18 @@ def build_prompt(
     """
     text = localized(beat, "text", language, default="")
 
+    # `restates` is not `continues`. m5-p3's text begins "Same question." and
+    # the deck's own tool field says *new conversation*: the beat's point is
+    # that the discipline is in the prompt, not in the model having been
+    # corrected. So the earlier beat's question is restated here, and no
+    # transcript is carried — the model has never seen its own cold answer.
+    # Prompt text is untouched (AGENTS.md rule 5): this composes two prompts
+    # that both already exist in the database, it does not write a third.
+    restates = block.get("restates")
+    if restates:
+        earlier = find_beat(restates["demo"], restates["beat"], sector)
+        text = f"{localized(earlier, 'text', language, default='')}\n\n{text}"
+
     for spec in block.get("inputs", []):
         paste_file = spec.get("paste_file")
         if not paste_file:
@@ -374,7 +460,11 @@ def plan(
             t("runs.not_executable", language, beat_id=beat_id, reason=reason)
         )
 
-    panes = bind_panes(block, sources, lang=language)
+    # The prompt is built first because it is also the retrieval query: rung 3
+    # must search for the question the room is about to watch being asked, not
+    # for a paraphrase of it kept somewhere else.
+    prompt = build_prompt(beat, block, sector, language=language)
+    panes = bind_panes(block, sources, lang=language, sector=sector, query=prompt)
     required = int(block.get("requires_sources", 1))
     # Distinct *(provider, model)* pairs, not distinct providers. Two panes on
     # one provider at two model sizes are two sources for every purpose a beat
@@ -389,7 +479,7 @@ def plan(
         beat_id=beat_id,
         demo_id=demo_id,
         sector=sector,
-        prompt=build_prompt(beat, block, sector, language=language),
+        prompt=prompt,
         panes=panes,
         continues=block.get("continues"),
         produces=block.get("produces"),

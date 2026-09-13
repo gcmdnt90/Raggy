@@ -32,7 +32,7 @@ Nessuna scheda può essere inviata al cliente se manca anche uno solo dei campi 
 - 3.3 Un mese sotto la soglia di produzione attesa, cioè in classe RG-4 o RG-5, non può essere chiuso senza un sopralluogo programmato, e il sopralluogo va annotato sulla scheda con la data prevista.
 - 3.4 Nessuna dichiarazione di ammissibilità agli incentivi può essere inserita da chi redige la scheda.
 - 3.5 L'autoconsumo dichiarato dal cliente non sostituisce mai la lettura del contatore: va riportato come dichiarato.
-- 3.6 Ogni scheda riporta il nome dell'operatore che l'ha redatta e la data di chiusura del mese.
+- 3.6 Ogni scheda riporta il codice dell'operatore che l'ha redatta e la data di chiusura del mese.
 
 ## 4. Responsabilità
 

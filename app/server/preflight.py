@@ -17,7 +17,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from app.i18n import localized, normalize, t
-from app.server import demos, sessions, sources
+from app.server import corpus, demos, sessions, sources
 from app.utils.redact import redact, secret_values
 
 logger = logging.getLogger("raggy.preflight")
@@ -603,12 +603,19 @@ def sectors_overview(*, lang: str | None = None) -> list[dict]:
     overview = []
     for sector in demos.sectors():
         state = demo_data(sector["id"], lang=lang)
+        index = corpus.index_state(sector["id"])
         overview.append({
             "id": sector["id"],
             "label": localized(sector, "label", lang) or sector["id"],
             "folder": sector.get("folder"),
             "ready": state["ok"],
             "missing_demos": state["missing_demos"],
+            # D3's third rung and D5-A retrieve from this. Reported here, on a
+            # page the trainer opens before the lesson, because the first build
+            # may download an embedding model - and the alternative to finding
+            # that out now is finding it out at the projector.
+            "index_ready": bool(index["ready"] and index["chunks"]),
+            "index_chunks": index["chunks"],
         })
     return overview
 

@@ -3,7 +3,7 @@ catena: D5
 prodotto_da: D5
 consumato_da: chiusura
 file: d5-verifiche-umane.md
-generato: 2026-09-03
+generato: 2026-09-12
 ---
 
 # D5 — Che cosa deve controllare una persona
