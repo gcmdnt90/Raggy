@@ -145,9 +145,20 @@ def test_offline_degrades_the_beat_and_says_why():
 # ── refusals ────────────────────────────────────────────────────────────────
 
 def test_library_beat_refuses_with_the_recorded_reason():
+    # "temperatur" rather than "temperature": the reason is read from
+    # run-blocks.json in the language the beat was planned in, and Banco plans
+    # in Italian unless told otherwise.
     with pytest.raises(LookupError) as exc:
         runs.plan("m1", "m1-p3", "numismatics", CLASSROOM)
-    assert "temperature" in str(exc.value).lower()
+    assert "temperatur" in str(exc.value).lower()
+
+
+def test_the_refusal_reason_is_recorded_in_both_languages():
+    """A beat the trainer cannot run says why on the projected surface."""
+    for language, expected in (("it", "temperatura"), ("en", "Temperature")):
+        with pytest.raises(LookupError) as exc:
+            runs.plan("m1", "m1-p3", "numismatics", CLASSROOM, language=language)
+        assert expected in str(exc.value)
 
 
 def test_unknown_beat_raises_key_error():
@@ -156,7 +167,8 @@ def test_unknown_beat_raises_key_error():
 
 
 def test_input_paths_cannot_escape_the_sector_demo_directory():
-    with pytest.raises(ValueError, match="escapes"):
+    # Case-insensitive and language-neutral: the refusal is translated.
+    with pytest.raises(ValueError, match="(?i)input"):
         runs.read_input_file("../../../etc/passwd", "numismatics")
 
 

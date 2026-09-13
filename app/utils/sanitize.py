@@ -5,7 +5,8 @@ from __future__ import annotations
 import io
 import unicodedata
 import zipfile
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import BinaryIO

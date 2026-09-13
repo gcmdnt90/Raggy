@@ -16,14 +16,18 @@ start.bat
 ```
 
 Creates a virtual environment, installs dependencies, runs the setup wizard on
-first launch, and opens the harness at `http://127.0.0.1:8501`.
-
-The stage console — pre-flight, configuration, prompt inspection, logs — is a
-route on the same server, authenticated and never projected:
+first launch, and opens **pre-flight** — the stage console — at
 
     http://127.0.0.1:8501/console
 
-`admin.bat` just opens it.
+Banco opens there on every launch, not only when it looks unconfigured: the
+machine that fails is the one that worked last week. `admin.bat` just opens the
+same URL.
+
+The projected surface is a different route, and it is the only one safe to put
+on a projector — `/` redirects to the console and the console shows key fields:
+
+    http://127.0.0.1:8501/harness
 
 ## First run asks for two things
 
@@ -38,8 +42,11 @@ source is an API provider (Anthropic, OpenAI, Google) or a local Ollama model.
 
 A missing source degrades a beat to a replayed recording. It never removes it.
 
-**A sector** — `numismatics`, `photovoltaic` or `automation-software` — which
-drives every prompt and every folder.
+**A sector** — one of the six the demo database declares (`numismatics`,
+`photovoltaic`, `automation-software`, `defi-protocol`, `trade-association`,
+`knitwear-software`) — which drives every prompt and every folder. Pre-flight
+says which of them has its material generated on this machine, and prints the
+`demo/kit/generate.py` command for one that does not.
 
 ## The demonstrations
 
@@ -62,9 +69,16 @@ Framework decisions live in the AI Translator repository under `docs/adr/`.
 
 ## Status
 
-Pre-M0. The fork is in place and both clean-checkout defects inherited from
-Raggy are fixed, but `requirements.lock` has not yet been regenerated — see
-`AGENTS.md` §3.
+**M0 done** — both locks regenerated on Windows with Python 3.13, Streamlit and
+qdrant-client gone (`AGENTS.md` §3).
+
+**M1–M2 in progress.** Four of the thirty-two declared beats execute live today:
+`m1-p1`, `m1-p2`, `m2-p1`, `m2-p2`. Every other beat carries a recorded reason
+for why it cannot, shown beside it rather than left to be discovered in a room.
+`run-blocks.json` is the register of both.
+
+**M3 (record and replay) has not started**: a pane that cannot run says so and
+shows nothing, because there is no recording to show.
 
 ## License
 

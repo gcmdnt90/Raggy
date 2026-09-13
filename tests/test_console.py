@@ -85,9 +85,28 @@ def test_console_is_open_while_no_password_is_set(client):
 
 
 def test_console_says_loudly_that_it_is_unprotected(client):
+    """And says it in Italian, which is what a console with no `lang` speaks."""
     check = client.get("/console/preflight").json()["checks"]["admin_password"]
     assert check["ok"] is False
-    assert "no password" in check["detail"].lower()
+    assert "non ha una password" in check["detail"].lower()
+
+
+def test_pre_flight_answers_in_the_language_the_browser_asked_for(client):
+    """`lang` travels on the request; there is no server-side language."""
+    english = client.get("/console/preflight?lang=en").json()["checks"]
+    italian = client.get("/console/preflight?lang=it").json()["checks"]
+
+    assert "no password" in english["admin_password"]["detail"].lower()
+    assert "non ha una password" in italian["admin_password"]["detail"].lower()
+    # Two consecutive requests in two languages must not have influenced each
+    # other: this is the regression the old process-wide `_ui_language` caused.
+    assert english["chain"]["detail"] != italian["chain"]["detail"]
+
+
+def test_an_unknown_language_falls_back_to_italian_rather_than_failing(client):
+    res = client.get("/console/preflight?lang=klingon")
+    assert res.status_code == 200
+    assert "non ha una password" in res.json()["checks"]["admin_password"]["detail"].lower()
 
 
 def test_the_shipped_placeholder_does_not_count_as_a_password(client, settings):
@@ -194,7 +213,7 @@ def test_live_check_calls_each_configured_source(client, settings, monkeypatch):
     settings.anthropic_api_key = "sk-test"
     called = []
 
-    def fake(role, source, s):
+    def fake(role, source, s, **_):
         called.append((role, source.provider))
         return preflight.Check(ok=True, detail=f"{role}: {source.provider} answered.")
 
@@ -210,7 +229,7 @@ def test_live_check_reports_a_key_that_does_not_work(client, settings, monkeypat
     settings.anthropic_api_key = "sk-wrong"
     monkeypatch.setattr(
         preflight, "check_source",
-        lambda role, source, s: preflight.Check(
+        lambda role, source, s, **_: preflight.Check(
             ok=False, detail="primary: anthropic refused", action="stored but not working"
         ),
     )
@@ -223,7 +242,7 @@ def test_live_check_never_returns_the_key_it_used(client, settings, monkeypatch)
     settings.anthropic_api_key = "sk-secret-value"
     monkeypatch.setattr(
         preflight, "check_source",
-        lambda role, source, s: preflight.Check(ok=True, detail="fine"),
+        lambda role, source, s, **_: preflight.Check(ok=True, detail="fine"),
     )
     assert "sk-secret-value" not in client.post("/console/check").text
 
@@ -232,3 +251,70 @@ def test_live_check_is_empty_with_no_source_at_all(client):
     data = client.post("/console/check").json()
     assert data["live"] == {}
     assert data["all_sources_live"] is False
+
+
+def test_live_check_covers_a_configured_key_that_fills_no_pane(client, settings, monkeypatch):
+    """Two API roles, three possible keys — the third was never called.
+
+    A key nobody reports on is a key discovered to be wrong in the room.
+    """
+    settings.anthropic_api_key = "sk-a"
+    settings.openai_api_key = "sk-b"
+    settings.google_api_key = "sk-c"
+
+    monkeypatch.setattr(
+        preflight, "check_source",
+        lambda role, source, s, **_: preflight.Check(ok=True, detail=f"{role}: {source.provider}"),
+    )
+    live = client.post("/console/check").json()["live"]
+
+    assert set(live) == {"primary", "secondary", "google"}
+
+
+def test_live_check_says_why_a_source_failed(settings, monkeypatch):
+    """Not just that it failed.
+
+    Every provider's `test_connection` swallows the exception and returns
+    False, so routing this check through it could only ever produce "did not
+    answer" — the one answer a trainer cannot act on.
+    """
+    from app.llm import router as router_module
+    from app.llm.base import LLMModelNotFoundError
+    from app.server.runs import ModelSource
+
+    class Raises:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, *args, **kwargs):
+            raise LLMModelNotFoundError("Model 'claude-sonnet-4-6' not found: 404")
+
+    monkeypatch.setattr(router_module, "LLMRouter", Raises)
+    source = ModelSource(provider="anthropic", model="claude-sonnet-4-6", egress="api.anthropic.com")
+
+    check = preflight.check_source("primary", source, settings)
+
+    assert check.ok is False
+    assert "LLMModelNotFoundError" in check.detail
+    assert "claude-sonnet-4-6" in check.detail
+
+
+def test_a_failure_reason_never_carries_the_key(settings, monkeypatch):
+    """The provider's message is not trusted to be credential-free."""
+    from app.llm import router as router_module
+    from app.llm.base import LLMAuthenticationError
+    from app.server.runs import ModelSource
+
+    settings.anthropic_api_key = "sk-ant-a-real-looking-value-0123456789"
+
+    class Raises:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, *args, **kwargs):
+            raise LLMAuthenticationError(f"401 invalid x-api-key {settings.anthropic_api_key}")
+
+    monkeypatch.setattr(router_module, "LLMRouter", Raises)
+    source = ModelSource(provider="anthropic", model="claude-sonnet-4-6", egress="api.anthropic.com")
+
+    assert settings.anthropic_api_key not in preflight.check_source("primary", source, settings).detail

@@ -1,0 +1,13 @@
+number,reference,vault,chain,contract_address,commit,strategy_version,dependency,audit_ref,findings_critical,findings_high,findings_medium,findings_low,open_findings,coverage_percent,timelock_hours,multisig,exposure_usd,grade,users_waiting,days_frozen,reviewer_signed,outcome_certain,operator
+1,RIL-2026-001,USDC — liquidità su pool stabile,Base,0xe1e26a7c5491c4fe33fae9b28f310c208f8b84b4,b78ddaa,v3.7.7,Chainlink Contracts 1.2.0 (price feed),REV-2026-009,0,1,2,5,3,72.8,24,2 su 3,50000,RD-4,555,21,True,True,REV-03
+2,RIL-2026-002,WBTC — copertura su perpetui,Polygon PoS,NON DETERMINATO,46ea242,v3.4.8,Permit2,NON DETERMINATO,0,0,5,5,5,86.7,48,2 su 3,50000,RD-2,544,16,True,True,REV-02
+3,RIL-2026-003,DAI — strategia delta neutrale,Ethereum mainnet,NON DETERMINATO,f26df52,v2.6.0,Uniswap v3-periphery 1.4.4,REV-2026-009,0,1,1,5,2,88.6,72,2 su 3,250000,RD-2,475,3,True,True,REV-02
+4,RIL-2026-004,WBTC — copertura su perpetui,Polygon PoS,0xdd6fc1dcb464b241c8af9f7a6ae1dc8405e8b7be,965f826,v3.0.3,Uniswap v3-periphery 1.4.4,REV-2026-026,0,0,1,7,1,94.8,72,3 su 5,250000,RD-1,447,14,True,False,REV-02
+5,RIL-2026-005,EURS — coppia stabile in euro,BNB Smart Chain,0xad56da827907d696c3baf651619170e62020c576,f9ed939,v1.8.0,Uniswap v3-periphery 1.4.4,REV-2026-037,1,2,3,3,6,72.9,12,4 su 7,250000,RD-5,189,3,False,True,REV-03
+6,RIL-2026-006,DAI — strategia delta neutrale,Polygon PoS,0xdc989972ab9fd8ce627e009f038271462e2921dc,a26b9ba,v3.8.0,Permit2,REV-2026-006,0,0,4,7,4,86.1,72,2 su 3,400000,RD-2,68,7,False,True,REV-04
+7,RIL-2026-007,WBTC — copertura su perpetui,BNB Smart Chain,NON DETERMINATO,NON ANNOTATO,v2.3.2,OpenZeppelin Contracts 5.0.2,REV-2026-027,0,0,0,4,0,82.9,72,2 su 3,1200000,RD-3,19,3,True,True,REV-01
+8,RIL-2026-008,USDT — mercato monetario,Polygon PoS,NON DETERMINATO,aa57139,v3.2.8,Chainlink Contracts 1.2.0 (price feed),NON DETERMINATO,0,0,1,0,1,92.5,72,4 su 7,750000,RD-1,543,1,True,True,REV-02
+9,RIL-2026-009,DAI — strategia delta neutrale,Arbitrum One,0xf900099d3c63ba8a85d94245cfed839084811d72,956cd42,v1.5.5,Permit2,NON DETERMINATO,0,0,3,4,3,91.8,48,2 su 3,750000,RD-2,526,10,True,True,REV-04
+10,RIL-2026-010,WBTC — copertura su perpetui,Base,NON DETERMINATO,8a22730,v1.8.9,Permit2,REV-2026-021,0,0,1,6,1,80.9,72,2 su 3,250000,RD-3,189,3,True,False,REV-03
+11,RIL-2026-011,MIX — paniere multi-collaterale,Ethereum mainnet,0x153598793376abf73d9df157f03a8c8b2f484224,f79816e,v3.7.8,Solmate 6.2.0,NON DETERMINATO,0,1,2,5,3,73.2,48,2 su 3,250000,RD-4,254,2,True,True,REV-03
+12,RIL-2026-012,MIX — paniere multi-collaterale,Ethereum mainnet,0x7949b8507f3604f167150d217525ceb71846652f,9f60025,v2.0.0,Solmate 6.2.0,REV-2026-035,0,0,2,6,2,87.4,24,3 su 5,750000,RD-3,41,13,True,True,REV-03

@@ -1,11 +1,9 @@
 """Tests for the Raggy RAG pipeline."""
 
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-from app.llm.base import LLMMessage, LLMResponse
-from app.rag.pipeline import RAGPipeline
 from app.rag.memory import ConversationMemory
+from app.rag.pipeline import RAGPipeline
 
 
 class TestConversationMemory:

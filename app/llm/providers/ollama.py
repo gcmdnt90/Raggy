@@ -4,13 +4,19 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Iterator
+from collections.abc import Iterator
 
 import requests
 
 from app.llm.base import (
-    LLMMessage, LLMProvider, LLMResponse,
-    LLMConnectionError, LLMModelNotFoundError, LLMTimeoutError,
+    LLMConnectionError,
+    LLMMessage,
+    LLMModelNotFoundError,
+    LLMProvider,
+    LLMResponse,
+    LLMTimeoutError,
+    ProviderRequest,
+    split_system,
 )
 
 logger = logging.getLogger(__name__)
@@ -21,6 +27,9 @@ class OllamaProvider(LLMProvider):
 
     provider_name: str = "ollama"
     default_model: str = "gemma3:4b"
+    #: What `for_inspection` must set for `prepare` to run without a client.
+    INSPECTION_DEFAULTS = {"num_ctx": 8192, "keep_alive": "30m",
+                           "base_url": "http://localhost:11434"}
 
     def __init__(self, base_url: str = "http://localhost:11434", **kwargs) -> None:
         kwargs.setdefault("api_key", "")
@@ -32,9 +41,53 @@ class OllamaProvider(LLMProvider):
     def _url(self, path: str) -> str:
         return f"{self.base_url}{path}"
 
-    @staticmethod
-    def _to_ollama_messages(messages: list[LLMMessage]) -> list[dict[str, str]]:
-        return [{"role": m.role, "content": m.content} for m in messages]
+    def prepare(self, messages: list[LLMMessage], params: dict | None = None, *,
+                model: str | None = None) -> ProviderRequest:
+        """Build an `/api/chat` body.
+
+        Ollama is the one source that speaks both shapes of deliberation:
+        `think` takes `true`/`false` or a level. It does not take a token
+        budget, so an integer budget is dropped with its reason rather than
+        approximated — an approximated budget beside a claim that deliberation
+        *is* a budget would be a false statement on a projected screen.
+        """
+        values = self.resolve_params(params)
+        target_model = model or self.model
+        system_text, chat = split_system(messages, values.get("system"))
+
+        conversation = ([{"role": "system", "content": system_text}] if system_text else [])
+        conversation += [{"role": m.role, "content": m.content} for m in chat]
+
+        temperature = float(values["temperature"])
+        max_tokens = int(values["max_tokens"])
+        payload: dict = {
+            "model": target_model,
+            "messages": conversation,
+            "keep_alive": self.keep_alive,
+            "options": {
+                "temperature": temperature,
+                "num_ctx": self.num_ctx,
+                "num_gpu": -1,
+                "num_predict": max_tokens,
+            },
+        }
+        sent: dict = {"temperature": temperature, "max_tokens": max_tokens}
+        dropped: dict[str, str] = {}
+        if system_text:
+            sent["system"] = system_text
+
+        think = values.get("think")
+        if think is not None:
+            if isinstance(think, bool) or isinstance(think, str):
+                # A level or a boolean goes through untouched. Some models take
+                # only one of the two and reject the other; that refusal is the
+                # model's and is narrated as a pane failure, not guessed at here.
+                payload["think"] = think
+                sent["think"] = think
+            else:
+                dropped["think"] = "drop.think.ollama_takes_boolean_or_level"
+
+        return ProviderRequest(model=target_model, payload=payload, sent=sent, dropped=dropped)
 
     def available_models(self) -> list[str]:
         try:
@@ -47,21 +100,14 @@ class OllamaProvider(LLMProvider):
         return [m["name"] for m in resp.json().get("models", []) if "name" in m]
 
     def generate(self, messages: list[LLMMessage], *, model: str | None = None,
-                 temperature: float | None = None, max_tokens: int | None = None) -> LLMResponse:
-        target_model = model or self.model
-        payload: dict = {
-            "model": target_model,
-            "messages": self._to_ollama_messages(messages),
-            "stream": False,
-            "keep_alive": self.keep_alive,
-            "options": {
-                "temperature": temperature if temperature is not None else self.temperature,
-                "num_ctx": self.num_ctx,
-                "num_gpu": -1,
-            },
-        }
-        if max_tokens or self.max_tokens:
-            payload["options"]["num_predict"] = max_tokens or self.max_tokens
+                 temperature: float | None = None, max_tokens: int | None = None,
+                 params: dict | None = None,
+                 request: ProviderRequest | None = None) -> LLMResponse:
+        request = request or self.prepare(
+            messages, self.resolve_params(params, temperature, max_tokens), model=model
+        )
+        target_model = request.model
+        payload = {**request.payload, "stream": False}
         try:
             resp = requests.post(self._url("/api/chat"), json=payload, timeout=self.timeout)
             resp.raise_for_status()
@@ -88,21 +134,14 @@ class OllamaProvider(LLMProvider):
                            provider=self.provider_name, usage=usage)
 
     def generate_stream(self, messages: list[LLMMessage], *, model: str | None = None,
-                        temperature: float | None = None, max_tokens: int | None = None) -> Iterator[str]:
-        target_model = model or self.model
-        payload: dict = {
-            "model": target_model,
-            "messages": self._to_ollama_messages(messages),
-            "stream": True,
-            "keep_alive": self.keep_alive,
-            "options": {
-                "temperature": temperature if temperature is not None else self.temperature,
-                "num_ctx": self.num_ctx,
-                "num_gpu": -1,
-            },
-        }
-        if max_tokens or self.max_tokens:
-            payload["options"]["num_predict"] = max_tokens or self.max_tokens
+                        temperature: float | None = None, max_tokens: int | None = None,
+                        params: dict | None = None,
+                        request: ProviderRequest | None = None) -> Iterator[str]:
+        request = request or self.prepare(
+            messages, self.resolve_params(params, temperature, max_tokens), model=model
+        )
+        target_model = request.model
+        payload = {**request.payload, "stream": True}
         try:
             resp = requests.post(self._url("/api/chat"), json=payload, timeout=self.timeout, stream=True)
             resp.raise_for_status()

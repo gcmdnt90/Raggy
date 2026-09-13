@@ -1,179 +1,229 @@
-/* The projected surface.
+/* The projected surface — Control Room visual direction.
 
-   Built entirely on the tokens in shared/base.css. Two rules from that file are
-   treated as binding here:
+   The room must be able to read every mechanism from the back. The semantic
+   colours in shared/base.css retain exactly one meaning each, and no text on
+   this surface drops below --fs-body. */
 
-   - Nothing goes below --fs-body. A room reads this from the back, so emphasis
-     is carried by colour and weight, never by shrinking text. That is why the
-     pane metadata is dim rather than small, and why there is no 12px anywhere.
-   - --local / --remote / --live / --replay mean one thing each. They are the
-     vocabulary the room learns over five demonstrations, so they are never
-     reused for decoration. */
+body { min-height: 100vh; overflow-x: hidden; }
 
 #bar {
-  display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;
-  padding: .6rem 1.2rem; border-bottom: 1px solid var(--rule);
-  color: var(--ink-dim); font-size: var(--fs-body);
+  position: sticky; z-index: 10; top: 0;
+  min-height: 4.6rem; display: flex; gap: 1.2rem; align-items: center;
+  padding: .7rem 1.3rem; border-bottom: 1px solid var(--rule);
+  background: rgb(11 13 14 / 96%); color: var(--ink-dim);
+  box-shadow: 0 12px 34px rgb(0 0 0 / 16%);
 }
 
-.brand { color: var(--ink); font-weight: 700; letter-spacing: .03em; }
+.brand {
+  display: inline-flex; align-items: center; gap: .65rem;
+  color: var(--ink); font-weight: 780; letter-spacing: -.02em;
+}
+.brand-mark {
+  width: 2rem; height: 2rem; display: inline-grid; place-items: center;
+  color: var(--live); border: 1px solid var(--live); border-radius: var(--radius-sm);
+  font: 800 .8rem/1 var(--mono);
+}
 
-.field { display: flex; align-items: center; gap: .5rem; }
-.field > span { color: var(--ink-dim); }
+.field { display: flex; align-items: center; gap: .55rem; }
+.field > span {
+  color: var(--ink-dim); font-family: var(--mono);
+  text-transform: uppercase; letter-spacing: .08em;
+}
 
 select {
-  font: var(--fs-body)/1 var(--sans);
-  background: var(--panel); color: var(--ink);
-  border: 1px solid var(--rule); border-radius: 6px; padding: .45rem .6rem;
+  max-width: 17rem; padding: .45rem 2rem .45rem .7rem;
+  color: var(--ink); background: var(--panel); border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
 }
 
 .chip {
-  font-family: var(--mono);
-  padding: .25rem .7rem;
-  border: 1px solid var(--rule); border-radius: 999px;
+  display: inline-flex; align-items: center; gap: .45rem;
+  padding: .38rem .75rem; border: 1px solid var(--rule); border-radius: 999px;
+  font-family: var(--mono); white-space: nowrap;
 }
 
-/* The profile is a statement about what this machine can reach, so an
-   unconfigured machine has to look wrong rather than merely different. */
-#profile[data-profile="classroom"] { color: var(--live); border-color: var(--live); }
-#profile[data-profile="take-home"] { color: var(--replay); border-color: var(--replay); }
-#profile[data-profile="offline"]   { color: var(--local); border-color: var(--local); }
-#profile[data-profile="unconfigured"] { color: var(--remote); border-color: var(--remote); }
+#profile::before, #egress::before, #mode::before {
+  content: ""; width: .45rem; height: .45rem; flex: 0 0 auto;
+  border-radius: 50%; background: currentColor;
+  box-shadow: 0 0 0 .22rem color-mix(in srgb, currentColor 12%, transparent);
+}
+#profile[data-profile="classroom"] { color: var(--live); border-color: color-mix(in srgb, var(--live) 45%, var(--rule)); }
+#profile[data-profile="take-home"] { color: var(--replay); border-color: color-mix(in srgb, var(--replay) 45%, var(--rule)); }
+#profile[data-profile="offline"] { color: var(--local); border-color: color-mix(in srgb, var(--local) 45%, var(--rule)); }
+#profile[data-profile="unconfigured"] { color: var(--remote); border-color: color-mix(in srgb, var(--remote) 45%, var(--rule)); }
 
-/* The egress indicator is an instrument, not decoration: without it D5-A's
-   network-off gesture proves nothing. See PROJECT.md invariant 4. */
-#egress { margin-left: auto; display: flex; gap: .5rem; align-items: baseline; }
-.egress-label { text-transform: uppercase; letter-spacing: .1em; color: var(--ink-dim); }
-#egress[data-where="local"]  { color: var(--local); border-color: var(--local); }
-#egress[data-where="remote"] { color: var(--remote); border-color: var(--remote); }
-#egress[data-where="mixed"]  { color: var(--ink); border-color: var(--rule); }
-
+#egress { margin-left: auto; }
+.egress-label { color: var(--ink-dim); text-transform: uppercase; letter-spacing: .08em; }
+#egress[data-where="local"] { color: var(--local); border-color: color-mix(in srgb, var(--local) 55%, var(--rule)); }
+#egress[data-where="remote"] { color: var(--remote); border-color: color-mix(in srgb, var(--remote) 55%, var(--rule)); }
+#egress[data-where="mixed"] { color: var(--ink); }
 .target { font-family: var(--mono); }
-.target.local  { color: var(--local); }
+.target + .target::before { content: " · "; color: var(--rule); }
+.target.local { color: var(--local); }
 .target.remote { color: var(--remote); }
 
-#mode { font-weight: 700; }
-#mode[data-mode="live"]   { color: var(--live);   border-color: var(--live); }
-#mode[data-mode="replay"] { color: var(--replay); border-color: var(--replay); }
+#mode { font-weight: 750; }
+#mode[data-mode="live"] { color: var(--live); border-color: color-mix(in srgb, var(--live) 55%, var(--rule)); }
+#mode[data-mode="replay"] { color: var(--replay); border-color: color-mix(in srgb, var(--replay) 55%, var(--rule)); }
 
-/* ── demo selector ───────────────────────────────────────────────────────── */
-
-#demos { display: flex; gap: .6rem; padding: 1rem 1.2rem 0; flex-wrap: wrap; }
-
-#demos button {
-  display: flex; flex-direction: column; align-items: center; gap: .15rem;
-  font: 600 var(--fs-body)/1.2 var(--sans);
-  background: var(--panel); color: var(--ink);
-  border: 1px solid var(--rule); border-radius: 6px; padding: .7rem 1.1rem;
-  cursor: pointer;
-}
-#demos button span { color: var(--ink-dim); font-weight: 400; }
-#demos button[aria-current="true"] { border-color: var(--live); }
-
-/* ── layout ──────────────────────────────────────────────────────────────── */
+/* The language switch is a control, not a reading. It sits last on the bar and
+   stays narrow, so it never competes with the egress indicator — the one thing
+   on this bar the room is explicitly asked to watch (invariant 4). */
+.field.lang { flex: 0 0 auto; }
+.field.lang select { max-width: 9.5rem; }
 
 main {
-  display: grid;
-  grid-template-columns: minmax(22rem, 28rem) 1fr;
-  gap: 1.2rem;
-  padding: 1.2rem;
-  align-items: start;
+  display: grid; grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+  min-height: calc(100vh - 4.6rem); align-items: stretch;
 }
 
-@media (max-width: 75rem) { main { grid-template-columns: 1fr; } }
+#left {
+  min-width: 0; padding: 1.35rem .9rem 2rem;
+  border-right: 1px solid var(--rule); background: #0d1011;
+}
 
-/* ── beats ───────────────────────────────────────────────────────────────── */
+.section-label {
+  margin: 0 .45rem .8rem; color: var(--ink-dim);
+  font-family: var(--mono); font-weight: 750;
+  text-transform: uppercase; letter-spacing: .1em;
+}
+.beats-label {
+  margin-top: 1.4rem; padding-top: 1.2rem; border-top: 1px solid var(--rule);
+}
 
-#beats { list-style: none; margin: 0 0 1.2rem; padding: 0; }
+#demos { display: grid; gap: .35rem; }
+#demos button {
+  display: grid; grid-template-columns: 3.2rem 1fr; gap: .7rem; align-items: center;
+  width: 100%; min-height: 3.2rem; padding: .55rem .65rem;
+  color: var(--ink-dim); text-align: left; background: transparent;
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+}
+#demos button:hover { color: var(--ink); background: var(--panel); }
+#demos button strong { color: var(--live); font-family: var(--mono); }
+#demos button span { text-transform: capitalize; }
+#demos button[aria-current="true"] {
+  color: var(--ink); background: var(--panel-raised); border-color: var(--rule);
+  box-shadow: inset 3px 0 var(--live);
+}
 
+#beats { list-style: none; margin: 0; padding: 0; }
 #beats li {
-  display: grid; grid-template-columns: auto 1fr auto;
-  gap: .6rem; align-items: baseline;
-  padding: .5rem .7rem;
-  border-left: 3px solid transparent; border-radius: 4px;
-  cursor: pointer;
+  display: grid; grid-template-columns: auto 1fr auto; gap: .6rem; align-items: start;
+  margin: .25rem 0; padding: .65rem .55rem; color: var(--ink-dim);
+  border: 1px solid transparent; border-radius: var(--radius-sm); cursor: pointer;
 }
-#beats li:hover { background: var(--panel); }
-#beats li[aria-current="true"] { background: var(--panel); border-left-color: var(--live); }
-
-/* A beat Banco cannot execute is dimmed, never hidden: the trainer has to see
-   the whole demonstration, including the parts that are not live yet. */
-#beats li.blocked-beat { color: var(--ink-dim); cursor: default; }
-
-.beat-id { font-family: var(--mono); color: var(--live); }
+#beats li:hover { color: var(--ink); background: var(--panel); }
+#beats li[aria-current="true"] { color: var(--ink); background: var(--panel-raised); border-color: var(--rule); }
+#beats li.blocked-beat { color: var(--ink-dim); cursor: default; opacity: .72; }
+.beat-id { color: var(--live); font-family: var(--mono); }
 .blocked-beat .beat-id { color: var(--ink-dim); }
-.beat-panes { font-family: var(--mono); color: var(--ink-dim); }
+.beat-label { line-height: 1.3; }
+.beat-panes { color: var(--ink-dim); font-family: var(--mono); white-space: nowrap; }
 
-#teaches { color: var(--ink); margin: 0 0 .7rem; }
-.blocked { color: var(--replay); margin: 0 0 .7rem; }
+#right { min-width: 0; padding: 1.35rem; }
+
+#detail { margin-bottom: 1rem; }
+.beat-heading {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem;
+  align-items: center; margin-bottom: .75rem;
+}
+#teaches { margin: 0; color: var(--ink); font-size: 1.35rem; font-weight: 720; line-height: 1.25; letter-spacing: -.025em; }
+.blocked { grid-column: 1 / -1; margin: 0; color: var(--replay); }
 
 #run {
-  font: 700 var(--fs-body)/1 var(--sans);
-  background: var(--live); color: var(--ground);
-  border: 0; border-radius: 6px; padding: .8rem 1.4rem; cursor: pointer;
+  grid-column: 2; grid-row: 1;
+  padding: .8rem 1.15rem; color: var(--ground); background: var(--live);
+  border: 1px solid var(--live); border-radius: var(--radius-sm); font-weight: 800;
+  box-shadow: 0 10px 30px rgb(110 231 199 / 10%);
 }
-#run:disabled { background: var(--rule); color: var(--ink-dim); cursor: not-allowed; }
+#run:hover { filter: brightness(1.06); }
+#run:disabled { color: var(--ink-dim); background: var(--rule); border-color: var(--rule); cursor: not-allowed; box-shadow: none; }
 
-#prompt-box { margin-top: 1rem; }
-#prompt-box summary { cursor: pointer; color: var(--ink-dim); }
-
-/* The prompt as sent. Objective 2: the room reads this, so it is the largest
-   text on the page after the titles. */
+#prompt-box {
+  overflow: hidden; border: 1px solid var(--rule); border-radius: var(--radius);
+  background: var(--panel);
+}
+#prompt-box summary {
+  display: flex; align-items: center; gap: .65rem; padding: .75rem .9rem;
+  color: var(--ink-dim); cursor: pointer; font-family: var(--mono);
+  text-transform: uppercase; letter-spacing: .08em;
+}
+#prompt-box summary::before { content: "+"; color: var(--live); font-weight: 800; }
+#prompt-box[open] summary::before { content: "−"; }
 #prompt {
-  font-size: var(--fs-prompt); line-height: 1.4;
-  background: var(--panel); border: 1px solid var(--rule);
-  border-radius: 8px; padding: 1.2rem; margin: .7rem 0 0;
-  max-height: 22rem; overflow: auto; white-space: pre-wrap;
+  max-height: 18rem; overflow: auto; margin: 0; padding: 1rem;
+  color: var(--ink); background: #0f1213; border-top: 1px solid var(--rule);
+  font-size: var(--fs-prompt); line-height: 1.4; white-space: pre-wrap;
 }
 
-/* ── panes ───────────────────────────────────────────────────────────────── */
-
-/* D1 shows four drafts at once; the grid is the demo. */
-#panes { display: grid; grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr)); gap: 1rem; }
+#panes { display: grid; gap: .65rem; min-width: 0; }
+#panes[data-count="1"] { grid-template-columns: minmax(0, 1fr); }
+#panes[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#panes[data-count="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#panes[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
 .pane {
-  display: flex; flex-direction: column; min-height: 20rem;
-  background: var(--panel); border: 1px solid var(--rule); border-radius: 8px;
+  display: flex; flex-direction: column; min-width: 0; min-height: 23rem;
+  overflow: hidden; background: var(--panel); border: 1px solid var(--rule);
+  border-radius: var(--radius); box-shadow: 0 14px 36px rgb(0 0 0 / 10%);
 }
-
+/* Which A/B pair a pane belongs to, and nothing more. It must not borrow a
+   semantic colour: --replay here meant half of every live run was outlined in
+   the colour reserved for a recording, and --local meant panes calling a
+   vendor endpoint were outlined as if they were on this machine. */
+.pane:nth-child(4n + 1), .pane:nth-child(4n + 2) { border-top: 3px solid var(--pair-a); }
+.pane:nth-child(4n + 3), .pane:nth-child(4n + 4) { border-top: 3px solid var(--pair-b); }
 .pane > header {
-  display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
-  padding: .8rem 1rem .4rem;
+  display: flex; justify-content: space-between; align-items: baseline; gap: .65rem;
+  padding: .75rem .85rem .5rem;
 }
-
-.pane-label { font-weight: 700; }
-
-.pane-state { font-family: var(--mono); color: var(--ink-dim); }
-.pane-state[data-state="streaming"]   { color: var(--ink); }
-.pane-state[data-state="done"]        { color: var(--live); }
-.pane-state[data-state="failed"]      { color: var(--remote); }
+.pane-label { font-weight: 780; }
+.pane-state { color: var(--ink-dim); font-family: var(--mono); text-transform: uppercase; }
+.pane-state[data-state="streaming"] { color: var(--ink); }
+.pane-state[data-state="done"] { color: var(--live); }
+.pane-state[data-state="failed"] { color: var(--remote); }
 .pane-state[data-state="unavailable"] { color: var(--replay); }
-
-/* Provider, model, temperature, thinking budget, destination. The whole reason
-   this application exists instead of four browser tabs. */
 .pane .meta {
-  padding: 0 1rem .7rem;
-  color: var(--ink-dim); font-family: var(--mono);
-  border-bottom: 1px solid var(--rule);
+  padding: 0 .85rem .65rem; color: var(--ink-dim); border-bottom: 1px solid var(--rule);
+  font-family: var(--mono); overflow-wrap: anywhere;
 }
-.pane .meta .sep { color: var(--rule); margin: 0 .3rem; }
+.pane .meta .sep { margin: 0 .25rem; color: var(--rule); }
 .pane .meta .unavailable { color: var(--replay); }
-
-.out { flex: 1; padding: 1rem; overflow: auto; max-height: 32rem; white-space: pre-wrap; }
-
-/* A pane that did not answer says so in its own words. It is never filled with
-   invented text (AGENTS.md rule 1). */
-.failure { color: var(--replay); font-family: var(--mono); margin: 0; }
+.out {
+  flex: 1; max-height: 58vh; overflow: auto; padding: .9rem;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.failure { margin: 0; color: var(--replay); font-family: var(--mono); }
 .pane-state[data-state="failed"] ~ * .failure { color: var(--remote); }
-
-.pane .thinking { color: var(--ink-dim); border-left: 2px solid var(--rule); padding-left: .8rem; }
-
-/* ── banner ──────────────────────────────────────────────────────────────── */
+.pane .thinking { padding-left: .8rem; color: var(--ink-dim); border-left: 2px solid var(--rule); }
 
 .banner {
-  margin: 0 0 1rem; padding: .7rem 1rem;
-  border: 1px solid var(--rule); border-radius: 6px;
+  margin: 0 0 1rem; padding: .7rem .9rem; border: 1px solid var(--rule);
+  border-radius: var(--radius-sm); background: var(--panel);
 }
-.banner[data-kind="ok"]    { color: var(--live);   border-color: var(--live); }
-.banner[data-kind="warn"]  { color: var(--replay); border-color: var(--replay); }
+.banner[data-kind="ok"] { color: var(--live); border-color: var(--live); }
+.banner[data-kind="warn"] { color: var(--replay); border-color: var(--replay); }
 .banner[data-kind="error"] { color: var(--remote); border-color: var(--remote); }
+
+@media (max-width: 90rem) {
+  main { grid-template-columns: 17rem minmax(0, 1fr); }
+  #panes[data-count="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 70rem) {
+  #bar { position: static; flex-wrap: wrap; }
+  #egress { margin-left: 0; }
+  main { grid-template-columns: 1fr; }
+  #left { border-right: 0; border-bottom: 1px solid var(--rule); }
+  #demos { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  #demos button { grid-template-columns: 1fr; text-align: center; }
+  #beats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 48rem) {
+  :root { --fs-body: 18px; --fs-prompt: 24px; }
+  #demos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #beats, #panes[data-count] { grid-template-columns: 1fr; }
+  .beat-heading { grid-template-columns: 1fr; }
+  #run { grid-column: 1; grid-row: auto; width: 100%; }
+}

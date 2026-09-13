@@ -108,12 +108,16 @@ two APIs). A missing source **degrades a beat to replay — it never removes it*
 | `take-home` | 1 API key (± Ollama) | live except the beats that need a second source |
 | `offline` | Ollama only | D4 and D5-B replay; the rest live |
 
-**Sector** — `numismatics`, `photovoltaic`, `automation-software` — is chosen
-once and drives every prompt, widget and folder, exactly as it does in the deck.
-The ids are English; each sector's `data.folder` in the database names the
-Italian folder under `demo/data/` (`numismatica`, `fotovoltaico`, `automazione`)
-and `data.records_dir` the records folder D4 works over. Never hard-code either
-mapping.
+**Sector** is chosen once and drives every prompt, widget and folder, exactly as
+it does in the deck. The database declares six — `numismatics`, `photovoltaic`,
+`automation-software`, `defi-protocol`, `trade-association`,
+`knitwear-software` — and `demo/kit/` can generate a pack for each. The ids are
+English; each sector's `data.folder` in the database names the Italian folder
+under `demo/data/` (`numismatica`, `fotovoltaico`, `automazione`, `defi`,
+`associazione`, `maglieria`) and `data.records_dir` the records folder D4 works
+over. Never hard-code either mapping, and never restate the list as though it
+were closed: adding a sector is a config plus a generator module, and pre-flight
+reads the set from the database.
 
 ---
 

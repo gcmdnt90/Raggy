@@ -1,0 +1,20 @@
+{
+  "rilascio": "RIL-2026-001",
+  "vault": "USDC — liquidità su pool stabile",
+  "strategia": "v3.7.7, congelata da 21 giorni",
+  "rete": "Base",
+  "copertura_test_percento": 72.8,
+  "rilievi_alti": 1,
+  "indirizzo_contratto": null,
+  "commit_rilascio": null,
+  "riferimento_revisione_esterna": null,
+  "dipendenza_esterna": "Chainlink Contracts 1.2.0 (price feed)",
+  "rilievo_2": "arrotondamento sul prelievo: corretto e ritestato",
+  "rilievo_3": "oracolo secondario: richiusura non annotata",
+  "timelock_ore": 24,
+  "multisig": "2 su 3",
+  "esposizione_usd": 50000,
+  "verifica_sorgente_explorer": "fatta a vista dallo sviluppatore",
+  "utenti_in_attesa": 555,
+  "classe_di_rischio": null
+}

@@ -35,8 +35,8 @@ def _ensure_venv():
 
 _ensure_venv()
 
-import argparse   # noqa: E402
-import subprocess # noqa: E402
+import argparse  # noqa: E402
+import subprocess  # noqa: E402
 
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -70,11 +70,11 @@ def cmd_status():
             collection = client.get_collection("raggy_kb")
             count = collection.count()
             print(f"  KB chunks:       {count}")
-            print(f"  ChromaDB:        ✅ OK")
+            print("  ChromaDB:        ✅ OK")
         except Exception as e:
             print(f"  ChromaDB:        ⚠️  Error: {e}")
     else:
-        print(f"  ChromaDB:        ❌ Not found (run 'reindex')")
+        print("  ChromaDB:        ❌ Not found (run 'reindex')")
 
     # Ollama
     try:
@@ -84,9 +84,9 @@ def cmd_status():
             models = resp.json().get("models", [])
             print(f"  Ollama:          ✅ Active ({len(models)} models)")
         else:
-            print(f"  Ollama:          ⚠️  Unexpected response")
+            print("  Ollama:          ⚠️  Unexpected response")
     except Exception:
-        print(f"  Ollama:          ⚠️  Unreachable")
+        print("  Ollama:          ⚠️  Unreachable")
 
 
 def cmd_reindex():

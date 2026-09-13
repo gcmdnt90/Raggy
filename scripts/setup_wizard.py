@@ -23,9 +23,8 @@ def _ensure_venv():
 
 _ensure_venv()
 
+import getpass  # noqa: E402
 import subprocess  # noqa: E402
-import shutil      # noqa: E402
-import getpass     # noqa: E402
 
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -86,7 +85,7 @@ def step_check_dependencies() -> dict:
         print("  ❌ requirements.txt not found!")
 
     # Ollama
-    from app.llm.ollama_setup import is_ollama_installed, get_system_info, recommend_models
+    from app.llm.ollama_setup import get_system_info, is_ollama_installed, recommend_models
 
     if is_ollama_installed():
         print("  ✅ Ollama found")
@@ -180,7 +179,7 @@ def step_configure_llm(deps: dict) -> dict:
             print("  Would you like to download a recommended model?")
             for i, m in enumerate(recommended, 1):
                 print(f"    [{i}] {m['name']} — {m['description']}")
-            print(f"    [0] Skip")
+            print("    [0] Skip")
             print()
 
             valid = [str(i) for i in range(len(recommended) + 1)]
@@ -238,10 +237,13 @@ def _test_api_key(provider: str, api_key: str) -> bool:
             )
             return True
         elif provider == "google":
-            import google.generativeai as genai
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(test_model)
-            model.generate_content("test")
+            # google-genai, the SDK this project declares and locks. The old
+            # `google.generativeai` import here failed on a clean install and
+            # the blanket `except` below turned that into "your key is
+            # invalid" — a wizard telling someone their working key is wrong.
+            from google import genai
+            client = genai.Client(api_key=api_key)
+            client.models.generate_content(model=test_model, contents="test")
             return True
     except Exception:
         return False

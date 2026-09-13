@@ -1,8 +1,7 @@
 """Tests for the Raggy document parser."""
 
+
 import pytest
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 from app.parsers.documents import extract_text, list_supported_files, load_document
 

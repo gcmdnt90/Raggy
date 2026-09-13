@@ -82,6 +82,149 @@ CHAIN = {
             "che nessuna dichiarazione su funzioni di sicurezza o conformità CE sia finita nel testo",
         ],
     },
+    "defi": {
+        "doc": "scheda di rilascio",
+        "doc_pl": "schede di rilascio",
+        "subject_key": "rilascio",
+        "truth_col": "reference",
+        "grade_prefix": "RD",
+        "rules_doc": "regole/standard-rilascio.md",
+        "guide_doc": "regole/guida-scala-rilascio.md",
+        "holes": [
+            ("indirizzo del contratto", "contract_address",
+             ["0x7a2f19c4b8e05d31a6f0c9b4e2d87a1f5c3b0e94",
+              "0xc41d8b07e2f6a95310bd4e7c8a2f059d63b1e4a7",
+              "0x3e9b5c1d07a8f24610cbe93d5f7a2b8c40d16e35",
+              "0x9d0c4a7f1b3e825609fa1d7c4e0b93a852f61c08"]),
+            ("commit di rilascio", "commit",
+             ["9f3c1ab", "2ad4e07", "4e0c72f", "c18b5d3"]),
+            ("riferimento della revisione esterna", "audit_ref",
+             ["REV-2026-004", "AUD-2026-11", "REV-2026-012",
+              "revisione esterna di giugno 2026"]),
+            ("classe di rischio di rilascio", "grade",
+             ["RD-1", "RD-2", "RD-2", "RD-1"]),
+        ],
+        "generic_answer": (
+            "Nel rilascio di smart contract la gravità dei rilievi si esprime di norma con la "
+            "scala delle società di revisione — Critical, High, Medium, Low, Informational — "
+            "con riferimento allo SWC Registry per le classi di vulnerabilità e alle versioni "
+            "delle librerie OpenZeppelin per le dipendenze. La checklist di rilascio riporta "
+            "indirizzo, rete, verifica del sorgente sull'explorer, proprietà del proxy e "
+            "parametri del timelock."
+        ),
+        "generic_why_wrong": (
+            "È la tassonomia del settore, ed è corretta in generale. Semplicemente non è la "
+            "vostra: la scala interna combina rilievi aperti, copertura dei test e finestra "
+            "di timelock in un unico livello, e nessun modello può ricavarla — mentre i campi "
+            "obbligatori della casa sono undici, non cinque."
+        ),
+        "human_checks": [
+            "l'indirizzo del contratto contro l'explorer, carattere per carattere, mai contro la memoria del modello",
+            "il commit di rilascio contro il tag firmato nel repository",
+            "il riferimento della revisione esterna contro il report pubblicato, e NON DETERMINATO finché non lo è",
+            "la classe di rischio ricalcolata a mano su rilievi aperti, copertura e timelock",
+            "timelock e composizione del multisig verificati sulla catena, non sulla scheda",
+            "che nessun rendimento atteso, storico o garantito sia finito nel testo",
+            "che nessuna dichiarazione di conformità o di avvenuto audit sia finita nel testo",
+        ],
+    },
+    "maglieria": {
+        "doc": "scheda di specifica",
+        "doc_pl": "schede di specifica",
+        "subject_key": "specifica",
+        "truth_col": "reference",
+        "grade_prefix": "SP",
+        "rules_doc": "regole/standard-specifica.md",
+        "guide_doc": "regole/guida-scala-specifica.md",
+        "holes": [
+            ("modulo interessato e versione in esercizio", "module_ref",
+             ["Pianificazione Produzione v3.2", "Modulo Programmazione 4.1",
+              "Gestione Commesse v2.8", "Planning & Scheduling v3.0"]),
+            ("codice cliente", "customer_code",
+             ["CL-014", "MG-07", "CLI-2026-11", "C-0032"]),
+            ("tempo standard della fase", "phase_std_min",
+             ["circa 12 minuti a capo", "8 min/capo", "10–12 minuti a capo",
+              "circa 15 minuti a capo"]),
+            # Four confident industry figures. None of them is the measured one
+            # on the survey, and two of them agree with what the capo reparto
+            # said out loud — which is the point: the model reproduces the
+            # hearsay, not the measurement.
+            ("classe di specifica", "grade",
+             ["SP-1", "SP-2", "SP-2", "SP-1"]),
+        ],
+        "generic_answer": (
+            "Le richieste di modifica a un gestionale si classificano di norma con MoSCoW "
+            "— Must, Should, Could, Won't — oppure con una matrice priorità/gravità, e si "
+            "dimensionano in punti storia; i criteri di accettazione si scrivono in forma "
+            "Given/When/Then e la scheda riporta descrizione, priorità, stima, criteri di "
+            "accettazione e definition of done."
+        ),
+        "generic_why_wrong": (
+            "È la pratica corrente della gestione requisiti, ed è corretta in generale. "
+            "Semplicemente non è la vostra, e per una ragione precisa: MoSCoW e i punti "
+            "storia misurano <b>priorità e dimensione</b>, mentre la scala SP misura quanta "
+            "specifica manca ancora alla richiesta e chi deve firmarla. Nessun quadro di "
+            "priorità ha un livello che dice «questo non deve diventare un ticket perché "
+            "non è un problema di software»: il vostro SP-5 sì. E i campi obbligatori della "
+            "casa sono undici, non cinque."
+        ),
+        "human_checks": [
+            "il modulo e la versione in esercizio contro l'installato del committente, mai contro la memoria del modello",
+            "il codice cliente contro l'anagrafica, e che il nome del maglificio non sia finito nella scheda",
+            "il tempo standard della fase contro la rilevazione in reparto, con la data: un dato riferito a voce resta «dichiarato, non rilevato»",
+            "la classe di specifica ricalcolata a mano su ambito, impatto sul modello dati e stato dei dati di processo, in quest'ordine",
+            "che i criteri di accettazione siano almeno due e misurabili, altrimenti NON DEFINITI e stima NON STIMABILE",
+            "che nessuna percentuale di miglioramento, di resa o di riduzione dei tempi sia finita nel testo",
+            "che una richiesta di cambio processo sia uscita come SP-5 e non come stima",
+        ],
+    },
+    "associazione": {
+        "doc": "scheda quesito",
+        "doc_pl": "schede quesito",
+        "subject_key": "quesito",
+        "truth_col": "reference",
+        "grade_prefix": "UA",
+        "rules_doc": "regole/regolamento-riscontro.md",
+        "guide_doc": "regole/guida-scala-riscontro.md",
+        "holes": [
+            ("riferimento normativo", "norm_ref",
+             ["art. 2118 del codice civile",
+              "D.Lgs. 15 giugno 2015 n. 81, art. 19",
+              "L. 20 maggio 1970 n. 300, art. 7",
+              "CCNL di categoria, art. 42"]),
+            ("contratto collettivo applicabile", "contract_ref",
+             ["CCNL Artigianato Acconciatura ed Estetica",
+              "CCNL Terziario, distribuzione e servizi",
+              "CCNL Artigianato Area Meccanica",
+              "CCNL Acconciatura ed Estetica (Confartigianato-CNA)"]),
+            ("termine di riscontro", "deadline_days",
+             ["45 giorni", "15 giorni", "entro 60 giorni", "20 giorni"]),
+            ("classe di riscontro", "grade",
+             ["UA-1", "UA-1", "UA-2", "UA-1"]),
+        ],
+        "generic_answer": (
+            "Per un quesito di questo tipo si applica la disciplina del contratto collettivo "
+            "di categoria e, per il rapporto di lavoro, il codice civile e il D.Lgs. 81/2015; "
+            "il periodo di prova e il preavviso seguono le tabelle del CCNL applicato, e il "
+            "riscontro all'associato va dato di norma entro trenta giorni."
+        ),
+        "generic_why_wrong": (
+            "È diritto del lavoro italiano, ed è corretto in Italia. Non è il vostro: a San "
+            "Marino la fonte è la legge sammarinese e i decreti delegati collegati, e il "
+            "vostro regolamento dice che se la fonte sammarinese non è stata reperita la "
+            "classe è UA-4 e il quesito esce dallo sportello — anche quando la fattispecie "
+            "italiana è identica. Nessun modello sa che esiste una scala UA."
+        ),
+        "human_checks": [
+            "la fonte citata contro il testo sammarinese in vigore, mai contro la memoria del modello",
+            "che nessuna norma italiana sia rimasta nel riscontro come fonte applicabile",
+            "il contratto collettivo applicabile contro quello depositato per quel settore",
+            "importi, aliquote e minimi contrattuali contro la tabella in vigore, mai a memoria",
+            "la classe di riscontro riassegnata da chi firma, con la regola del livello più alto in caso di dubbio",
+            "che nella scheda non sia finito nessun dato personale dell'associato o dei suoi dipendenti",
+            "che i quesiti su contenzioso aperto siano usciti come UA-5 e non come risposta nel merito",
+        ],
+    },
     "numismatica": {
         "doc": "scheda di catalogo",
         "doc_pl": "schede di catalogo",
@@ -356,6 +499,13 @@ def d4(cfg, sec, out_dir) -> str:
     ))
     labels = {
         "reference": "riferimento", "order": "commessa", "site": "sito",
+        "vault": "vault", "chain": "rete", "contract_address": "indirizzo",
+        "coverage_percent": "copertura (%)", "category": "categoria",
+        "member_sector": "settore associato", "norm_ref": "fonte citata",
+        "members_affected": "associati",
+        "customer_code": "cliente", "module": "modulo", "phase": "fase",
+        "process_data": "dati di processo", "data_impact": "impatto sui dati",
+        "capi_month": "capi/mese",
         "machine": "macchina", "denomination": "nominale", "metal": "metallo",
         "weight_g": "peso (g)", "tests_done": "prove eseguite",
         "tests_total": "prove totali", "cycle_time_s": "tempo ciclo (s)",
@@ -363,8 +513,13 @@ def d4(cfg, sec, out_dir) -> str:
         "grade": "classe", "operator": "operatore",
     }
     keys = [k for k in ("reference", "order", "site", "machine", "denomination",
-                        "metal", "weight_g", "tests_done", "tests_total", "kwh",
-                        "cycle_time_s", "pr_percent", "grade", "operator")
+                        "metal", "weight_g", "vault", "chain", "contract_address",
+                        "category", "member_sector", "norm_ref",
+                        "customer_code", "module", "phase",
+                        "tests_done", "tests_total", "kwh",
+                        "cycle_time_s", "pr_percent", "coverage_percent",
+                        "members_affected", "capi_month",
+                        "process_data", "data_impact", "grade", "operator")
             if rows and k in rows[0]]
     out.append("| " + " | ".join(labels[k] for k in keys) + " |\n")
     out.append("|" + "---|" * len(keys) + "\n")

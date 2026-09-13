@@ -333,3 +333,214 @@ URL, autore, ente, licenza e data di consultazione per ciascuna.
       per M1, M2 e M4.
 - [x] Ogni affermazione ha una fonte; dove non c'è, è scritto che non c'è.
 - [ ] Le tre fotografie con licenza (punto D) — aperto.
+
+---
+
+## 7. Due settori aggiunti — `defi` e `associazione` (2026-09-08)
+
+Aggiunti per le due lezioni del 14 settembre 2026. Stessa regola di prima:
+**forma ricercata, valori inventati.**
+
+### 7.1 DeFi — la scheda di rilascio
+
+**Struttura reale.** Non esiste una scheda normata come la NU dell'ICCD o la
+IEC 62381: la forma del documento si ricava dalle checklist di rilascio in uso.
+I campi che ricorrono ovunque, e che il kit riproduce: indirizzo del contratto
+e rete di destinazione, commit di rilascio, versione della strategia,
+dipendenze esterne con la versione dichiarata nel lockfile, rilievi della
+revisione divisi per gravità, copertura dei test, ritardo del timelock e soglia
+del multisig, verifica del sorgente sull'explorer, riferimento del report di
+revisione esterna.
+
+**La gravità dei rilievi** si esprime nel mestiere con
+`Critical / High / Medium / Low / Informational`: è la tassonomia delle società
+di revisione, non una scala interna. È **la risposta che darà il gradino 1** del
+modulo 3 — corretta in generale, e non quella della casa.
+
+**Un dettaglio che vale un minuto in aula.** Un modello senza documenti cita
+spesso lo *SWC Registry* come riferimento per le classi di vulnerabilità. La
+home dello SWC Registry dice di sé: *«Please note, this content is no longer
+actively maintained»*, non è aggiornata dal 2020, e rimanda a EEA EthTrust
+Security Levels e a SCSVS. Quindi la risposta del gradino 1 è fluente, plausibile
+e appoggiata a uno standard che si dichiara superato: è la dimostrazione di
+`m3-p1` due volte, senza costi di preparazione.
+Fonte: https://swcregistry.io/ (consultata 2026-09-08).
+
+**Perché la scala RD è quella giusta da inventare.** Non ricalca la gravità dei
+rilievi: **combina** rilievi aperti, copertura dei test e finestra di timelock in
+un unico livello. Nessun modello può ricavarla, e un revisore la ricalcola a mano
+in dieci secondi — che è esattamente ciò che serve alla verifica di D4.
+
+**Non trovato / non verificato.** Le pratiche interne della software house
+committente: chi firma un
+rilascio, se esista uno standard interno scritto, quali reti usino davvero, se le
+revisioni esterne siano pubblicate. Tutto quanto sopra è forma di settore, non
+loro. Da chiedere prima della lezione.
+
+### 7.2 Associazione di categoria — la scheda quesito
+
+**Struttura reale.** Il documento è il registro dei quesiti dello sportello.
+La forma è ricavata dai servizi che un'associazione di categoria sammarinese
+dichiara pubblicamente: pratiche di inizio attività e licenze, contrattualistica
+di lavoro, tabelle salariali, cassa integrazione, credito agevolato, libri paga,
+contabilità e fiscale. Fonte: sito pubblico dell'associazione, consultato
+2026-09-08. Il nome dell'organizzazione non è riportato qui: questo file viaggia
+dentro il kit e dentro Banco.
+
+**I riferimenti normativi nel config sono reali** — unica eccezione alla regola
+del kit — e sono ripresi da un elenco di normativa pubblicato da un'associazione
+di categoria sammarinese: L. 164/2022 (occupazione), DD 153/2023 (contratti a termine e
+somministrazione), DD 105/2022 (formazione e politiche attive), L. 202/2020
+(lavoro agile), L. 59/2016 (libertà sindacale e contrattazione), DD 50/2024
+(attività economiche), L. 40/2014 (licenze), DD 11/2022 (lavoro autonomo senza
+sede fissa), L. 157/2022 (previdenza), L. 118/2010 (stranieri), L. 129/2022
+(famiglia). Fonte: elenco pubblico dell'associazione, consultato 2026-09-08.
+Ognuna di queste norme è verificabile per numero e data sulla raccolta
+ufficiale sammarinese: è la norma la fonte citabile, non l'elenco.
+
+Sono reali per una ragione precisa: **il gradino 1 del modulo 3 sbaglia
+giurisdizione, non merito.** Un modello senza documenti risponde con l'art. 2118
+c.c., il D.Lgs. 81/2015 e un CCNL italiano — fluente, competente, altro Paese. La
+dimostrazione funziona solo se la fonte giusta esiste davvero e sta scritta nei
+documenti della casa. Nel config quesito e norma sono **appaiati per posizione**:
+il quesito *i* cita la norma *i*, così la citazione regge alla lettura di chi quel
+mestiere lo fa.
+
+**La scala UA non misura la difficoltà del quesito: misura quanta verifica serve
+e chi può firmare.** È una scala di responsabilità, ed è la ragione per cui questo
+settore parla a un consiglio direttivo invece che a un ufficio.
+
+**Non trovato / non verificato.** Se esista davvero un regolamento interno di
+riscontro, come siano protocollati i quesiti, quali contratti collettivi siano
+depositati per ciascun settore, e i tempi di riscontro reali. Il regolamento del
+kit è **inventato**. Da chiedere prima della lezione.
+
+
+---
+
+## 8. Un settore aggiunto — `maglieria` (2026-09-12)
+
+Il record è la **scheda di specifica**: una richiesta del committente
+trasformata in specifica funzionale per il gestionale di produzione della casa.
+Il settore è una software house che fa consulenza di processo e software
+gestionale per maglifici, quindi il documento sta a cavallo di due mestieri e
+deve reggere la lettura di entrambi.
+
+### 8.1 Struttura reale — la parte software
+
+**Struttura reale.** Lo standard di riferimento per che cosa deve contenere una
+specifica di requisiti è **ISO/IEC/IEEE 29148:2018**, *Systems and software
+engineering — Life cycle processes — Requirements engineering*. Il testo
+«specifies the required processes implemented in the engineering activities that
+result in requirements for systems and software products (including services)
+throughout the life cycle», e in particolare definisce **gli information item
+prodotti, il contenuto obbligatorio di ciascuno e le linee guida di formato**.
+È la ragione per cui i campi obbligatori del kit sono undici e non cinque, e per
+cui i criteri di accettazione sono un campo obbligatorio con una soglia (almeno
+due, misurabili) e non una nota libera.
+Fonte: <https://www.iso.org/standard/72089.html> (consultata 2026-09-12).
+Il testo integrale è a pagamento; la pagina ISO pubblica scope e abstract, che
+è quanto serviva qui.
+
+**Che cosa NON è stato preso dallo standard.** Le forme correnti della pratica
+agile — MoSCoW, punti storia, Given/When/Then, definition of done — sono
+deliberatamente **fuori** dal regolamento della casa e compaiono solo come
+risposta del gradino 1 in `generate_chain.py`. Sono la «media del settore» che
+un modello senza documenti produce, ed è esattamente il salto che il modulo 3
+deve rendere visibile.
+
+### 8.2 Struttura reale — la parte maglieria
+
+**Il ciclo di lavorazione.** L'ordine dei reparti nel config segue il ciclo
+della maglieria calata come lo descrivono i maglifici stessi: sviluppo e
+prototipo → **tessitura** → **rimaglio** → **rifinitura a mano** → **lavaggio**
+→ **controllo qualità** → **stiro, etichettatura e imbusto**. Il conto lavoro
+(terzisti) è trasversale.
+Fonte: <https://www.rinaldicashmere.it/processo-produttivo-del-maglificio/>
+(consultata 2026-09-12).
+
+**Finezza.** La stessa fonte dichiara macchine rettilinee con finezze «da 12 a
+5». Il config usa 7GG e 12GG, dentro l'intervallo dichiarato. La finezza è
+scritta in GG accanto al tipo di telaio, come si scrive in reparto.
+
+**Rimaglio.** È «la tecnica con la quale si cuciono insieme i "pezzi" del capo
+di maglieria calata», su macchine diverse a seconda della finezza del filato, e
+un singolo capo può richiedere più macchine. È lavorazione manuale, lenta e
+specialistica — la ragione per cui è la fase che ogni maglificio sorveglia, e
+per cui la scheda di D1 è una richiesta di avanzamento del rimaglio.
+Fonte: ZoneModa, Università di Bologna, *Il mondo della maglieria e del
+rimaglio* di Rosa Lucarelli,
+<https://zonemoda.unibo.it/il-mondo-della-maglieria-e-del-rimaglio-di-rosa-lucarelli/>
+(consultata 2026-09-12).
+
+**Vocabolario tessile.** La terminologia di base della maglieria è normata da
+**ISO 4921:2000**, *Knitting — Basic concepts — Vocabulary* (recepita come
+BS EN ISO 4921:2002). Non è stata acquistata: è citata come la fonte normativa
+del vocabolario, non come fonte dei valori.
+Fonte: <https://www.iso.org/standard/33711.html> (consultata 2026-09-12).
+
+Termini usati nel kit, nella forma che si usa in reparto: finezza in GG, titolo
+del filato, consumo di filato a capo contro il consumo teorico di distinta,
+**calo** di finissaggio, resa, cartellino di lavorazione, griglia taglie e
+colori, conto lavoro e terzista, difettosità per tipo (buchi, cadute di maglia,
+difetti di rimaglio), misure fuori tolleranza.
+
+### 8.3 Che cosa non si è trovato — e che cosa ne consegue
+
+**I tempi standard di fase non sono pubblici.** Nessuna fonte citabile pubblica
+minuti a capo per tessitura, rimaglio, rifinitura, finissaggio o stiro: sono il
+patrimonio industriale di ogni maglificio e il prodotto stesso di una
+rilevazione tempi, cioè la cosa che una società di consulenza vende. Di
+conseguenza:
+
+* i **valori** in `min_capo` sono **inventati** e dichiarati tali;
+* l'**ordine di grandezza relativo fra le fasi** segue il ciclo — tessitura la
+  più lunga, poi rimaglio, poi rifinitura, poi finissaggio, stiro e controllo le
+  più brevi — perché è l'ordinamento, non il numero assoluto, quello che un
+  professionista verifica in tre secondi;
+* **è l'unica cosa di questo pacchetto da far confermare al cliente prima
+  della lezione.** Un ordinamento sbagliato fra le fasi si vede subito; un
+  valore assoluto sbagliato è dichiarato sintetico e non costa nulla.
+
+**Altro non verificato.** Quali moduli abbia davvero il gestionale del cliente,
+come numeri le richieste, se esista uno standard interno di specifica scritto,
+quali committenti abbia e come li codifichi. Tutto quanto sopra è forma di
+settore, non loro. Da chiedere prima della lezione.
+
+### 8.4 Perché la scala SP è quella giusta da inventare
+
+Non ricalca nessuna scala di priorità esistente, e non per scelta estetica:
+**MoSCoW e i punti storia misurano priorità e dimensione**, mentre la scala SP
+misura *quanta specifica manca ancora alla richiesta e chi deve firmarla*. Si
+ricalcola a mano leggendo tre campi in ordine — ambito dell'intervento, impatto
+sul modello dati, stato dei dati di processo — e nessun modello senza documenti
+può ricavarla.
+
+Il livello che nessun quadro di priorità ha è **SP-5**: la richiesta cambia il
+processo del committente e non il software, quindi non deve diventare un ticket.
+È la posizione che una società di consulenza di processo sostiene per mestiere,
+resa un campo obbligatorio di un documento.
+
+### 8.5 Due righe collocate apposta
+
+Documentate anche in cima a `generators/settori/maglieria.py`, perché un
+cambio di seed non le rompa in silenzio:
+
+* **riga 5 è l'unica SP-5.** Il fallimento voluto n. 2 abbassa la riga 5 della
+  tabella di D4 di un livello, quindi la tabella presenta come «sospesa» una
+  richiesta che non doveva diventare un ticket. Nella tabella la classe SP-4
+  **non segue dai campi visibili** (l'impatto sui dati è «nuovo campo»): chi
+  ricalcola vede che qualcosa non torna, ma per sapere *cosa* deve aprire la
+  scheda, dove compare l'ambito «processo».
+* **riga 7 è il record di D1 e D4.** SP-4, con dati di processo **rilevati** e
+  criteri di accettazione inutilizzabili: gli appunti grezzi contengono tutto
+  tranne la regola, quindi il modello che ci redige sopra assegna SP-1 o SP-2.
+
+### 8.6 Il numero che compare tre volte
+
+Nel record di D1 il tempo standard della fase compare in tre versioni diverse, e
+non è un caso: quello che il modello **inventa** (8–15 minuti a capo, la media
+di settore), quello che il capo reparto **dice a voce** (una cifra tonda, sotto
+il vero), e quello che la **rilevazione ha misurato** (il valore in
+`ground-truth.csv`). La regola 2 della casa esiste per la distanza fra gli
+ultimi due; il modulo 1 esiste per la distanza fra il primo e gli altri due.

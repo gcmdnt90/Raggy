@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 from app.llm.base import LLMMessage
 
 if TYPE_CHECKING:
-    from app.llm.router import LLMRouter
+    pass
 
 logger = logging.getLogger(__name__)
 

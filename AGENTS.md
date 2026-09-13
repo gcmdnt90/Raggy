@@ -182,10 +182,24 @@ edit per upstream release.
    must exist on disk before a lesson. A successful run overwrites; a failed run
    leaves the file intact.
 
+9. **Italian first, and the language is never process state.** Both surfaces
+   default to Italian and both carry a switch. The language belongs to the
+   browser that asked and travels as a `lang` parameter or a request field; a
+   module-level "current language" would let the stage console change what the
+   projector is showing, which is how `app/i18n.py` used to work. New text goes
+   in both catalogues at once — `app/i18n.py` for anything the server composes,
+   `app/web/shared/strings.{it,en}.js` for anything a page builds — and
+   `tests/test_i18n.py` fails on a key that exists in only one of them. Text a
+   model or a provider produced is shown as it is, never translated. A prompt's
+   paste placeholder is part of the prompt and is therefore translated with it
+   (`replaces` / `replaces_it`).
+
 ---
 
 ## 5. Where things are
 
+    app/i18n.py            strings the SERVER writes; one language per call
+    app/web/shared/        the i18n runtime and the two browser catalogues
     app/server/main.py     the FastAPI app; mounts both surfaces
     app/server/harness.py  routes for the projected surface
     app/server/console.py  routes for the stage console

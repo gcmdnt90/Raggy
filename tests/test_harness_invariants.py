@@ -43,33 +43,57 @@ def test_no_resolved_demo_contains_any_sector_client_name():
                 )
 
 
+# A name no client has. The guards below must be exercised whatever the database
+# happens to declare, so they are tested against this rather than against a real
+# sector's `client.name`.
+FAKE_CLIENT = {"name": "Acme Fittizia S.r.l.", "sector": "test sector"}
+
+
+def test_no_sector_declares_a_client_name():
+    """The demo database is client-agnostic. Names live in `engagements/`.
+
+    The `client` block IS the substitution map, so a name written here reaches
+    the projected surface and is inlined into the deck's published
+    `index.html`. One sat there from the first delivery until 2026-09-12. See
+    `theory-deck/PROMPTS.md`.
+    """
+    named = [
+        s["id"] for s in demos.load().get("sectors", [])
+        if (s.get("client", {}).get("name") or "").strip()
+    ]
+    assert not named, f"sectors declaring a client name: {named}"
+
+
 def test_client_name_is_not_substitutable():
     """`{{name}}` must not expand, so a future prompt cannot leak it."""
     assert "name" in demos.CONFIDENTIAL_CLIENT_FIELDS
-    for sector in _sector_ids():
-        sec = next(s for s in demos.load()["sectors"] if s["id"] == sector)
-        if not (sec.get("client", {}).get("name") or "").strip():
-            continue
-        substituted = demos._substitute(
-            "{{name}} and {{sector}}",
-            {k: v for k, v in sec["client"].items()
-             if k not in demos.CONFIDENTIAL_CLIENT_FIELDS},
-        )
-        assert "{{name}}" in substituted, "the client name was substituted in"
-        assert "{{sector}}" not in substituted, "ordinary placeholders must still work"
+    substituted = demos._substitute(
+        "{{name}} and {{sector}}",
+        {k: v for k, v in FAKE_CLIENT.items()
+         if k not in demos.CONFIDENTIAL_CLIENT_FIELDS},
+    )
+    assert "{{name}}" in substituted, "the client name was substituted in"
+    assert "{{sector}}" not in substituted, "ordinary placeholders must still work"
 
 
 def test_resolution_refuses_content_carrying_the_client_name():
-    """The guard must fire on a name written straight into a prompt."""
-    sec = next(
-        (s for s in demos.load()["sectors"] if (s.get("client", {}).get("name") or "").strip()),
-        None,
-    )
-    if sec is None:
-        pytest.skip("no sector declares a client name")
-    name = sec["client"]["name"]
+    """The guard must fire on a name written straight into a prompt.
+
+    Against a synthetic client, not against whatever the database declares.
+    The previous version of this test skipped itself once every sector shipped
+    `name: ""` — which left the guard untested at exactly the moment the
+    database stopped protecting itself.
+    """
+    name = FAKE_CLIENT["name"]
     with pytest.raises(ValueError, match="invariant 1"):
-        demos._assert_no_client_name({"text": f"a draft for {name}"}, sec["client"])
+        demos._assert_no_client_name({"text": f"a draft for {name}"}, FAKE_CLIENT)
+
+
+def test_an_empty_client_name_does_not_match_everything():
+    """`name: ""` must be a no-op, not a substring that refuses every demo."""
+    demos._assert_no_client_name({"text": "anything at all"}, {"name": ""})
+    demos._assert_no_client_name({"text": "anything at all"}, {"name": "   "})
+    demos._assert_no_client_name({"text": "anything at all"}, {})
 
 
 def test_no_resolved_demo_contains_a_trainer_field():

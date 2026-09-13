@@ -1,8 +1,15 @@
 // Banco harness. Reads the demo database through the server; never holds prompt
 // text of its own (docs/adr/0001), and never renders output no model produced
 // (AGENTS.md rule 1) — an unavailable pane shows its reason, not a placeholder.
+//
+// Two kinds of text arrive here and they are handled differently. Banco's own
+// words — labels, states, banners — come from `i18n.t` or, when the server
+// composed them, already translated by app/i18n.py. Words from the demo
+// database are picked per language by `pick()`, which knows the `_it`
+// convention. Model output is never touched.
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls) => Object.assign(document.createElement(tag), cls ? { className: cls } : {});
+const t = (key, vars) => i18n.t(key, vars);
 
 const state = {
   sector: localStorage.getItem("banco.sector") || "numismatics",
@@ -13,9 +20,25 @@ const state = {
   egress: new Map(), // target -> local?  kept for the whole session, not per run
 };
 
+// The demo database is bilingual by field suffix: `label` is English, `label_it`
+// is Italian. One function knows that, here and in app/i18n.py, and nothing else
+// concatenates "_it" onto a field name.
+function pick(node, field) {
+  if (!node) return "";
+  const localized = i18n.lang === "it" ? node[`${field}_it`] : node[field];
+  return localized || node[field] || "";
+}
+
 // ── boot ───────────────────────────────────────────────────────────────────
 
 async function boot() {
+  await load();
+}
+
+// Re-entrant: also the language-change path. `keepPanes` is what makes changing
+// language mid-lesson safe — the chrome and the labels are rebuilt, the output
+// four models have already produced stays on screen.
+async function load({ keepPanes = false } = {}) {
   const [status, sectorList, demos] = await Promise.all([
     json("/api/status"),
     json("/api/sectors"),
@@ -26,8 +49,11 @@ async function boot() {
   renderSectors(sectorList);
   renderDemos(demos);
 
-  if (demos.length) selectDemo(state.demoId && demos.some(d => d.id === state.demoId)
-    ? state.demoId : demos[0].id);
+  if (!demos.length) return;
+  const wanted = state.demoId && demos.some((d) => d.id === state.demoId)
+    ? state.demoId
+    : demos[0].id;
+  await selectDemo(wanted, { keepPanes });
 }
 
 async function json(url, options) {
@@ -36,13 +62,19 @@ async function json(url, options) {
   return res.json();
 }
 
+// Every request that can come back with server-composed text says which
+// language it wants. There is no session: the language is the browser's.
+function withLang(url) {
+  return `${url}${url.includes("?") ? "&" : "?"}lang=${encodeURIComponent(i18n.lang)}`;
+}
+
 function renderProfile(status) {
   const roles = Object.entries(status.roles || {});
   $("#profile").textContent = status.profile;
   $("#profile").dataset.profile = status.profile;
   $("#profile").title = roles.length
     ? roles.map(([r, s]) => `${r}: ${s.provider} ${s.model} → ${s.egress}`).join("\n")
-    : "no model source configured";
+    : t("harness.no_source_configured");
 }
 
 function renderSectors(list) {
@@ -51,15 +83,15 @@ function renderSectors(list) {
   for (const s of list) {
     const opt = el("option");
     opt.value = s.id;
-    opt.textContent = s.label || s.id;
+    opt.textContent = pick(s, "label") || s.id;
     sel.append(opt);
   }
   sel.value = state.sector;
-  sel.addEventListener("change", () => {
+  sel.onchange = () => {
     state.sector = sel.value;
     localStorage.setItem("banco.sector", state.sector);
     if (state.demoId) selectDemo(state.demoId);
-  });
+  };
 }
 
 function renderDemos(demos) {
@@ -68,19 +100,30 @@ function renderDemos(demos) {
   for (const d of demos) {
     const b = el("button");
     b.dataset.id = d.id;
-    b.innerHTML = `<strong>${d.id.toUpperCase()}</strong><span>${d.shape}</span>`;
+    b.title = pick(d, "title");
+    b.innerHTML =
+      `<strong>${escapeHtml(String(d.id).toUpperCase())}</strong>` +
+      `<span>${escapeHtml(pick(d, "shape"))}</span>`;
     b.addEventListener("click", () => selectDemo(d.id));
     nav.append(b);
   }
+  if (state.demoId) markDemo(state.demoId);
 }
 
 // ── selection ──────────────────────────────────────────────────────────────
 
-async function selectDemo(id) {
-  state.demoId = id;
-  state.demo = await json(`/api/demos/${id}?sector=${encodeURIComponent(state.sector)}`);
+function markDemo(id) {
   document.querySelectorAll("#demos button").forEach((b) =>
     b.setAttribute("aria-current", String(b.dataset.id === id)));
+}
+
+async function selectDemo(id, { keepPanes = false } = {}) {
+  state.demoId = id;
+  // `teaches` and a blocked beat's reason are composed by the server from
+  // run-blocks.json, so the language goes with the request.
+  state.demo = await json(
+    withLang(`/api/demos/${id}?sector=${encodeURIComponent(state.sector)}`));
+  markDemo(id);
 
   const list = $("#beats");
   list.innerHTML = "";
@@ -88,27 +131,31 @@ async function selectDemo(id) {
     const li = el("li", beat.run.runnable ? "runnable" : "blocked-beat");
     li.dataset.id = beat.id;
     li.innerHTML =
-      `<span class="beat-id">${beat.id}</span>` +
-      `<span class="beat-label">${escapeHtml(beat.label || "")}</span>` +
-      (beat.run.runnable
-        ? `<span class="beat-panes">${beat.run.panes} panes</span>`
-        : `<span class="beat-panes">—</span>`);
+      `<span class="beat-id">${escapeHtml(beat.id)}</span>` +
+      `<span class="beat-label">${escapeHtml(pick(beat, "label"))}</span>` +
+      `<span class="beat-panes">${escapeHtml(beat.run.runnable
+        ? t("harness.beat_panes", { count: beat.run.panes })
+        : t("harness.beat_no_panes"))}</span>`;
     li.addEventListener("click", () => selectBeat(beat.id));
     list.append(li);
   }
 
-  const firstRunnable = (state.demo.prompts || []).find((p) => p.run.runnable);
-  if (firstRunnable) selectBeat(firstRunnable.id);
-  else { $("#detail").hidden = true; $("#panes").innerHTML = ""; }
+  const wanted = state.beatId && beatById(state.beatId)
+    ? state.beatId
+    : (state.demo.prompts || []).find((p) => p.run.runnable)?.id;
+
+  if (wanted) selectBeat(wanted, { keepPanes });
+  else { $("#detail").hidden = true; if (!keepPanes) $("#panes").innerHTML = ""; }
 }
 
 function beatById(id) {
   return (state.demo.prompts || []).find((p) => p.id === id);
 }
 
-function selectBeat(id) {
-  state.beatId = id;
+function selectBeat(id, { keepPanes = false } = {}) {
   const beat = beatById(id);
+  if (!beat) return;
+  state.beatId = id;
   document.querySelectorAll("#beats li").forEach((li) =>
     li.setAttribute("aria-current", String(li.dataset.id === id)));
 
@@ -119,16 +166,29 @@ function selectBeat(id) {
 
   const blocked = $("#blocked");
   blocked.hidden = beat.run.runnable;
-  blocked.textContent = beat.run.runnable ? "" : (beat.run.reason || "not executable");
+  blocked.textContent = beat.run.runnable
+    ? ""
+    : (beat.run.reason || t("harness.not_executable"));
 
   $("#run").disabled = !beat.run.runnable || state.running;
   $("#run").textContent = beat.run.continues
-    ? `Run — continues ${beat.run.continues}`
-    : "Run";
+    ? t("harness.run_continues", { beat: beat.run.continues })
+    : t("harness.run");
 
+  if (keepPanes) return;
   $("#panes").innerHTML = "";
   $("#banner").hidden = true;
 }
+
+// ── language ───────────────────────────────────────────────────────────────
+
+// i18n.js has already re-written every `data-i18n` node by the time this fires;
+// what is left is everything JavaScript built, plus the server-composed text
+// that has to be fetched again in the new language.
+addEventListener(i18n.EVENT, () => {
+  load({ keepPanes: true }).catch((err) =>
+    showBanner(t("harness.server_unreachable", { error: String(err) }), "error"));
+});
 
 // ── running ────────────────────────────────────────────────────────────────
 
@@ -148,12 +208,17 @@ async function run() {
         demo_id: state.demoId,
         beat_id: state.beatId,
         sector: state.sector,
+        // The prompt itself has an Italian and an English text in the demo
+        // database. This is what decides which one is sent to the model — and
+        // therefore which one the room reads in the "prompt as sent" panel.
+        language: i18n.lang,
       }),
     });
 
     if (!res.ok) {
       const detail = await res.json().catch(() => ({}));
-      showBanner(detail.detail || `run refused (${res.status})`, "error");
+      showBanner(
+        detail.detail || t("harness.run_refused", { status: res.status }), "error");
       return;
     }
 
@@ -202,19 +267,20 @@ function handleEvent({ name, data }) {
     case "pane_failed": return onPaneFailed(data);
     case "pane_unavailable": return onPaneUnavailable(data);
     case "chain_failed":
-      return showBanner(`chain file not written: ${data.error}`, "error");
+      return showBanner(t("harness.chain_failed", { error: data.error }), "error");
     case "run_done": return onRunDone(data);
   }
 }
 
 function onPlan(plan) {
   $("#prompt").textContent = plan.prompt;      // the prompt as actually sent
+  if (plan.teaches) $("#teaches").textContent = plan.teaches;
   // Live is announced as loudly as replay. If only replay were labelled, a
   // room would have to notice an absence to know what it is watching.
   const mode = $("#mode");
   mode.hidden = false;
   mode.dataset.mode = plan.replayed ? "replay" : "live";
-  mode.textContent = plan.replayed ? "REPLAY — a recording of a real run" : "LIVE";
+  mode.textContent = plan.replayed ? t("harness.mode_replay") : t("harness.mode_live");
 
   const host = $("#panes");
   host.innerHTML = "";
@@ -226,36 +292,38 @@ function onPlan(plan) {
     card.innerHTML =
       `<header>` +
         `<span class="pane-label">${escapeHtml(pane.label)}</span>` +
-        `<span class="pane-state" data-state="waiting">waiting</span>` +
+        `<span class="pane-state" data-state="waiting">${escapeHtml(t("harness.pane_waiting"))}</span>` +
       `</header>` +
       `<div class="meta mono">${paneMeta(pane)}</div>` +
       `<div class="out"></div>`;
     host.append(card);
   }
 
-  if (plan.degraded) {
-    showBanner(
-      "Degraded: not every pane has a model source. Unavailable panes are marked, " +
-      "never filled in.",
-      "warn"
-    );
-  }
+  if (plan.degraded) showBanner(t("harness.degraded"), "warn");
 }
 
 // Provider, model, temperature, thinking budget and destination — the mechanism
 // this whole application exists to put on a screen (PROJECT.md objective 2).
 function paneMeta(pane) {
-  if (pane.unavailable) return `<span class="unavailable">unavailable</span>`;
+  if (pane.unavailable) {
+    return `<span class="unavailable">${escapeHtml(t("harness.unavailable"))}</span>`;
+  }
   const bits = [`${escapeHtml(pane.provider)} · ${escapeHtml(pane.model)}`];
-  // Never state a temperature the model discards: Anthropic dropped sampling
-  // parameters after Opus 4.6, and a false number here is worse than none.
+  // Never state a temperature the call did not carry. Two things can stop it:
+  // the model ignores sampling parameters, or the installed SDK has no field
+  // for them — anthropic 1.2.0 dropped `temperature` from Messages.create
+  // outright. Either way the number is not in flight, and a false number here
+  // is worse than none.
   bits.push(pane.temperature_applies === false
-    ? `<span class="unavailable">temp ${pane.temperature} not honoured by this model</span>`
-    : `temp ${pane.temperature}`);
-  if (pane.thinking) bits.push(`thinking ${escapeHtml(pane.thinking)}`);
+    ? `<span class="unavailable">${escapeHtml(
+        t("harness.temperature_ignored", { value: pane.temperature }))}</span>`
+    : escapeHtml(t("harness.temperature", { value: pane.temperature })));
+  if (pane.thinking) {
+    bits.push(escapeHtml(t("harness.thinking", { level: pane.thinking })));
+  }
   bits.push(
     `<span class="target ${pane.local ? "local" : "remote"}">` +
-    `${pane.local ? "local" : "→"} ${escapeHtml(pane.egress)}</span>`
+    `${pane.local ? escapeHtml(t("harness.local")) : "→"} ${escapeHtml(pane.egress)}</span>`
   );
   return bits.join(" <span class=sep>|</span> ");
 }
@@ -270,44 +338,39 @@ function onDelta({ pane: i, text }) {
   const out = pane(i)?.querySelector(".out");
   if (!out) return;
   out.textContent += text;
-  setState(i, "streaming", "streaming");
+  setState(i, t("harness.pane_streaming"), "streaming");
   out.scrollTop = out.scrollHeight;
 }
 
 function onPaneDone({ pane: i, egress, local }) {
-  setState(i, "done", "done");
+  setState(i, t("harness.pane_done"), "done");
   noteEgress(egress, local);
 }
 
 function onPaneFailed({ pane: i, error }) {
-  setState(i, "failed", "failed");
+  setState(i, t("harness.pane_failed"), "failed");
   const out = pane(i)?.querySelector(".out");
   if (out) {
     const p = el("p", "failure");
-    p.textContent = error;   // narrated, not hidden
+    p.textContent = error;   // narrated, not hidden — and never translated
     out.append(p);
   }
 }
 
 function onPaneUnavailable({ pane: i, reason, recording }) {
-  setState(i, "unavailable", "unavailable");
+  setState(i, t("harness.pane_unavailable"), "unavailable");
   const out = pane(i)?.querySelector(".out");
   if (!out) return;
   const p = el("p", "failure");
   p.textContent = recording
-    ? `${reason} — replaying a recording`
-    : `${reason}. No recording exists yet, so nothing is shown here rather than something invented.`;
+    ? t("harness.replaying", { reason })
+    : t("harness.no_recording", { reason });
   out.append(p);
 }
 
 function onRunDone(done) {
-  if (done.produced) showBanner(`chain file written: ${done.produced}`, "ok");
-  else if (done.chain_held)
-    showBanner(
-      "Chain file left untouched: not every pane succeeded, so the version that " +
-      "shipped is still in place.",
-      "warn"
-    );
+  if (done.produced) showBanner(t("harness.chain_written", { file: done.produced }), "ok");
+  else if (done.chain_held) showBanner(t("harness.chain_held"), "warn");
 }
 
 function noteEgress(target, local) {
@@ -316,8 +379,8 @@ function noteEgress(target, local) {
 
   const entries = [...state.egress];
   $("#egress-targets").innerHTML = entries
-    .map(([t, isLocal]) =>
-      `<span class="target ${isLocal ? "local" : "remote"}">${escapeHtml(t)}</span>`)
+    .map(([target_, isLocal]) =>
+      `<span class="target ${isLocal ? "local" : "remote"}">${escapeHtml(target_)}</span>`)
     .join(" ");
 
   // One word for the whole run, because that is what the room is asked about in
@@ -340,4 +403,5 @@ function escapeHtml(s) {
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 
-boot().catch((err) => showBanner(`cannot reach the server: ${err}`, "error"));
+boot().catch((err) =>
+  showBanner(t("harness.server_unreachable", { error: String(err) }), "error"));

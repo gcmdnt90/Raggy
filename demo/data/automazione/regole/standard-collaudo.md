@@ -36,7 +36,7 @@ Nessuna scheda può essere consegnata al cliente se manca anche uno solo dei cam
 - 3.4 Un esito non confermato dal tecnico va sempre accompagnato dalla dicitura DA VERIFICARE.
 - 3.5 I collaudi in classe CE-5 non possono essere consegnati al cliente.
 - 3.6 Un verbale privo della firma del cliente resta interno e non fa fede come accettazione.
-- 3.7 Ogni scheda riporta il nome dell'operatore che l'ha redatta e la data della sessione.
+- 3.7 Ogni scheda riporta il codice dell'operatore che l'ha redatta e la data della sessione.
 
 ## 4. Responsabilità
 

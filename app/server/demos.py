@@ -168,8 +168,3 @@ def _assert_no_client_name(resolved: dict, client: dict) -> None:
             f"{name!r}: PROJECT.md invariant 1. Move it to a trainer field or "
             "remove it from the prompt in the deck."
         )
-
-
-# TODO(M1): a `run` block per beat — panes, provider/model per pane, temperature,
-#   thinking level, input files, expected artefact. Additive to the schema so the
-#   deck ignores it. See docs/adr/0001.

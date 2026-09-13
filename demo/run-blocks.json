@@ -1,36 +1,45 @@
 {
   "_readme": "Machine-readable run blocks for Banco, keyed by beat id. The prompt TEXT is never here - it lives in demo-prompts.json, vendored from the deck (docs/adr/0001). This file holds only what a program needs in order to execute a beat: how many panes, which kind of model source each pane wants, the sampling parameters the room must see, and which file is pasted in. Merged over the demo database at load time by app/server/runs.py, so the vendored copy stays byte-identical to its pin. See docs/adr/0003.",
   "version": 1,
-  "updated": "2026-09-09",
+  "updated": "2026-09-12",
   "_roles_note": "A pane asks for a ROLE, never a named provider. 'primary' and 'secondary' are two different API providers; 'local' is Ollama. The profile chosen at first run binds roles to concrete providers, which is what lets a missing source degrade a beat to replay instead of removing it (PROJECT.md, Configuration model). A run block that named 'anthropic' would break the offline profile and could not degrade.",
+  "_teaches_params_note": "The parameters a beat exists to expose. They are what a collapsed pane shows with no gesture; everything else sits behind the Info control (docs/specs/model-control.md §6). Absent or empty is legal and means \"nothing to foreground\" - the safe default, because a pane showing no parameter makes no claim about it. Every value must be one of Banco's four parameter names (temperature, max_tokens, system, think) and must actually be stated by a pane of that beat; tests/test_precedence.py fails otherwise.",
   "_temperature_note": "Temperature is stated explicitly on every pane because the room has to see it - that is objective 2, and it is why m1-p3 was a dead branch on consumer products. The value is data, not code: change it here.",
   "beats": {
     "m1-p1": {
       "mode": "panes",
+      "teaches_params": [
+        "temperature"
+      ],
       "teaches": "Sampling variance, and that fields absent from the source get filled anyway.",
+      "teaches_it": "La varianza di campionamento, e il fatto che i campi assenti dalla fonte vengono comunque riempiti.",
       "panes": [
         {
           "pane": 0,
           "role": "primary",
           "label": "A - run 1",
+          "label_it": "A — esecuzione 1",
           "temperature": 1.0
         },
         {
           "pane": 1,
           "role": "primary",
           "label": "A - run 2",
+          "label_it": "A — esecuzione 2",
           "temperature": 1.0
         },
         {
           "pane": 2,
           "role": "secondary",
           "label": "B - run 1",
+          "label_it": "B — esecuzione 1",
           "temperature": 1.0
         },
         {
           "pane": 3,
           "role": "secondary",
           "label": "B - run 2",
+          "label_it": "B — esecuzione 2",
           "temperature": 1.0
         }
       ],
@@ -39,6 +48,7 @@
         {
           "paste_file": "demo/m4-grezzi.md",
           "replaces": "[PASTE RAW NOTES]",
+          "replaces_it": "[INCOLLA APPUNTI GREZZI]",
           "identical_across_panes": true
         }
       ],
@@ -48,7 +58,11 @@
     },
     "m1-p2": {
       "mode": "panes",
+      "teaches_params": [
+        "temperature"
+      ],
       "teaches": "Asked for its source, the model either admits it inferred the value or points at a passage that is not there.",
+      "teaches_it": "Interrogato sulla sua fonte, il modello o ammette di aver dedotto il valore o indica un passaggio che non c'è.",
       "continues": "m1-p1",
       "_continues_note": "The deck says 'the same chat, right after'. Each pane carries its own m1-p1 exchange forward as conversation history, so pane 2 is asked about what pane 2 wrote. Restarting the conversation here would destroy the beat: there would be no prior entry to interrogate.",
       "panes": [
@@ -56,37 +70,109 @@
           "pane": 0,
           "role": "primary",
           "label": "A - run 1",
+          "label_it": "A — esecuzione 1",
           "temperature": 1.0
         },
         {
           "pane": 1,
           "role": "primary",
           "label": "A - run 2",
+          "label_it": "A — esecuzione 2",
           "temperature": 1.0
         },
         {
           "pane": 2,
           "role": "secondary",
           "label": "B - run 1",
+          "label_it": "B — esecuzione 1",
           "temperature": 1.0
         },
         {
           "pane": 3,
           "role": "secondary",
           "label": "B - run 2",
+          "label_it": "B — esecuzione 2",
           "temperature": 1.0
         }
       ],
       "inputs": [],
       "requires_sources": 2,
       "degrades_to": "replay"
+    },
+    "m2-p1": {
+      "mode": "panes",
+      "teaches": "Capability differs by model: the same prompt, over the same four drafts, gets a deeper judgement from a larger model.",
+      "teaches_it": "La capacita' cambia col modello: lo stesso prompt, sulle stesse quattro bozze, ottiene da un modello piu' grande un giudizio piu' profondo.",
+      "_panes_note": "Two panes, not four: D2 inverts D1's shape. D1 gives one input to four panes to show them disagreeing; D2 gives the same one input to two panes to show them differing in DEPTH. The labels are deliberately neutral - 'Giudice A' and 'Giudice B', never 'small' and 'large' - because which is which is a property of the session profile, not of this file, and a pane captioned 'modello piccolo' beside whatever the profile happened to bind would be a false statement on a projected screen. The model id on each pane carries the fact, and it is true by construction.",
+      "panes": [
+        {
+          "pane": 0,
+          "role": "primary",
+          "label": "Judge A",
+          "label_it": "Giudice A",
+          "temperature": 1.0
+        },
+        {
+          "pane": 1,
+          "role": "secondary",
+          "label": "Judge B",
+          "label_it": "Giudice B",
+          "temperature": 1.0
+        }
+      ],
+      "inputs": [
+        {
+          "paste_file": "demo/catena/d1-bozze.md",
+          "append": true,
+          "_append_note": "This prompt has no [PASTE ...] hole: it says 'these four drafts' and expects them to be in the conversation, because in the room a person pastes them under the question. So the file is appended rather than substituted. See app/server/runs.build_prompt."
+        }
+      ],
+      "produces": "demo/catena/d2-criteri.md",
+      "requires_sources": 2,
+      "degrades_to": "replay"
+    },
+    "m2-p2": {
+      "mode": "panes",
+      "teaches": "Deliberation is a budget, not a switch: the same model, the same question, once with no reasoning budget and once with one.",
+      "teaches_it": "La deliberazione e' un budget, non un interruttore: stesso modello, stessa domanda, una volta senza budget di ragionamento e una volta con.",
+      "teaches_params": [
+        "think"
+      ],
+      "_panes_note": "Both panes ask the SAME role, so both bind to the same provider and the same model. The only difference between them is the reasoning budget, which is the whole beat: two panes on two different models would show capability again, which is what beat 1 already showed. `max_tokens` is stated because a budget has to fit under it - Anthropic requires 1024 <= budget < max_tokens - so the ceiling is part of what this beat asks for and not a detail of the configuration.",
+      "_think_note": "The budget is stated as an INTEGER because that is the claim: deliberation is a budget. Anthropic sends it as thinking.budget_tokens and Google as thinking_budget. Ollama and OpenAI take levels instead, so on those the parameter is DROPPED and the pane says so - honest, but the beat then does not demonstrate its mechanism. That is what the pre-flight capability check is for: bind `primary` for m2 to a budget-capable source before this beat runs.",
+      "panes": [
+        {
+          "pane": 0,
+          "role": "primary",
+          "label": "Reasoning off",
+          "label_it": "Ragionamento spento",
+          "temperature": 1.0,
+          "max_tokens": 8000,
+          "think": false
+        },
+        {
+          "pane": 1,
+          "role": "primary",
+          "label": "Reasoning on - budget 4096",
+          "label_it": "Ragionamento acceso - budget 4096",
+          "temperature": 1.0,
+          "max_tokens": 8000,
+          "think": 4096
+        }
+      ],
+      "inputs": [
+        {
+          "paste_file": "demo/catena/d1-bozze.md",
+          "append": true
+        }
+      ],
+      "requires_sources": 1,
+      "degrades_to": "replay"
     }
   },
   "_unblocked": {
     "m1-p3": "Temperature, felt not explained. PROJECT.md objective 4 requires this beat to become live, and Banco is the first surface that can set temperature at all. Unresolved: the prompt text currently asks for two registers in ONE response, which is a workaround for products that hide temperature - running it as one prompt across panes at different temperatures changes what the beat teaches, and prompt text is AGENTS.md rule 5 and section 7 territory. No run block until that is decided.",
     "m1-p4": "ARCHIVE, status 'library'. Aged out September 2026 and kept as documentation of how models changed (AGENTS.md rule 7). Deliberately has no run block.",
-    "m2-p1": "Lands in M2, 'the demonstrations that need no agent' (PROJECT.md). No run block yet. Two judges over D1's four drafts: the panes are two sources judging one pasted input, which inverts D1's shape (one input per pane, not one input to all).",
-    "m2-p2": "Lands in M2, 'the demonstrations that need no agent' (PROJECT.md). No run block yet. Needs a thinking budget as a pane parameter - declared in the schema, never yet exercised, and the mechanism D2 teaches is precisely that deliberation is a budget and not a switch.",
     "m2-p3": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
     "m2-p4": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
     "m2-p5": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
@@ -114,5 +200,37 @@
     "m5-p6": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design.",
     "m5-p4": "status 'library' - an alternative or archived beat. Kept on purpose (AGENTS.md rule 7); no run block by design."
   },
-  "_unblocked_note": "Every beat in the demo database that Banco cannot yet execute, and why. tests/test_run_blocks.py fails if an active beat appears in neither this map nor 'beats', so 'the demo exists but Banco cannot run it' cannot go unnoticed - which is the condition Banco was built to end."
+  "_unblocked_it": {
+    "m1-p3": "La temperatura, sentita e non spiegata. L'obiettivo 4 di PROJECT.md richiede che questo beat diventi live, e Banco è la prima superficie capace di impostare la temperatura. Irrisolto: il testo del prompt chiede oggi due registri in UNA sola risposta, che è un aggiramento per i prodotti che nascondono la temperatura — eseguirlo come un unico prompt su pannelli a temperature diverse cambia ciò che il beat insegna, e il testo dei prompt è materia della regola 5 e della sezione 7 di AGENTS.md. Nessun run block finché non è deciso.",
+    "m1-p4": "ARCHIVIO, stato 'library'. Ritirato a settembre 2026 e conservato come documentazione di come sono cambiati i modelli (AGENTS.md regola 7). Deliberatamente senza run block.",
+    "m2-p3": "stato 'library' — un beat alternativo o archiviato. Conservato di proposito (AGENTS.md regola 7); nessun run block per scelta.",
+    "m2-p4": "stato 'library' — un beat alternativo o archiviato. Conservato di proposito (AGENTS.md regola 7); nessun run block per scelta.",
+    "m2-p5": "stato 'library' — un beat alternativo o archiviato. Conservato di proposito (AGENTS.md regola 7); nessun run block per scelta.",
+    "m3-p1": "Arriva con M2, 'le dimostrazioni che non hanno bisogno di un agente' (PROJECT.md). Nessun run block per ora. Tutti e tre i gradini in un solo beat: nessun documento, tutti i documenti, i documenti recuperati. Il gradino 2 è quello che nessun prodotto commerciale può essere convinto a mostrare, ed è la ragione per cui D3 esiste.",
+    "m3-p2": "Arriva con M2, 'le dimostrazioni che non hanno bisogno di un agente' (PROJECT.md). Nessun run block per ora. I passaggi recuperati devono arrivare come output strutturato dell'esecuzione, non come testo che un modello dichiara di aver letto.",
+    "m3-p6": "Arriva con M2, 'le dimostrazioni che non hanno bisogno di un agente' (PROJECT.md). Nessun run block per ora.",
+    "m3-p5": "Arriva con M2, 'le dimostrazioni che non hanno bisogno di un agente' (PROJECT.md). Nessun run block per ora. Ramo morto: annunciato come morto solo dopo che è stato eseguito (CONTEXT.md).",
+    "m3-p3": "stato 'library' — un beat alternativo o archiviato. Conservato di proposito (AGENTS.md regola 7); nessun run block per scelta.",
+    "m3-p4": "stato 'library' — un beat alternativo o archiviato. Conservato di proposito (AGENTS.md regola 7); nessun run block per scelta.",
+    "m4-p1": "D4 aspetta M5. PROJECT.md tiene D4 in esecuzione dentro Cowork come ponte temporaneo per tutto M2, anche se i beat 1-6 non hanno bisogno di un loop agentico e potrebbero arrivare prima — da decidere alla chiusura di M2. Questo beat riapre l'output di D1 invece di rieseguirlo.",
+    "m4-p2": "D4 aspetta M5; vedi m4-p1. I beat 1-6 non hanno bisogno di un loop agentico.",
+    "m4-p3": "D4 aspetta M5; vedi m4-p1. I beat 1-6 non hanno bisogno di un loop agentico.",
+    "m4-p4": "D4 aspetta M5; vedi m4-p1. I beat 1-6 non hanno bisogno di un loop agentico.",
+    "m4-p5": "D4 aspetta M5; vedi m4-p1. Ramo morto — una vera chiamata a un connettore.",
+    "m4-p6": "D4 aspetta M5; vedi m4-p1. I beat 1-6 non hanno bisogno di un loop agentico.",
+    "m4-p7": "Serve il loop agentico: M5. list_dir / read_file / write_file su una sola cartella isolata, le chiamate agli strumenti sullo schermo, e un prompt di permesso che è esso stesso materiale didattico.",
+    "m4-p8": "Serve il loop agentico: M5. Da eseguire come una verifica che la stanza compie insieme, mai come una rivelazione (PROJECT.md, 'Banco non fa affidamento sulla sorpresa').",
+    "m4-p9": "stato 'library' — un beat alternativo o archiviato. Conservato di proposito (AGENTS.md regola 7); nessun run block per scelta.",
+    "m4-p10": "stato 'library' — un beat alternativo o archiviato. Conservato di proposito (AGENTS.md regola 7); nessun run block per scelta.",
+    "m4-p11": "stato 'library' — un beat alternativo o archiviato. Conservato di proposito (AGENTS.md regola 7); nessun run block per scelta.",
+    "m5-p5": "Arriva con M2, 'le dimostrazioni che non hanno bisogno di un agente' (PROJECT.md). Nessun run block per ora. D5-A è il percorso dei dati. Non può essere costruito prima che l'indicatore di egress sia reale: senza, il gesto di staccare la rete non dimostra nulla, perché la stanza non ha mai visto uscire niente (invariante 4).",
+    "m5-p1": "D5-B ha bisogno del loop agentico: M5. Fino ad allora gira in Cowork, il ponte temporaneo che PROJECT.md descrive.",
+    "m5-p2": "Arriva con M2, 'le dimostrazioni che non hanno bisogno di un agente' (PROJECT.md). Nessun run block per ora. D5-C, identificazione a freddo — un'attribuzione sbagliata con sicurezza.",
+    "m5-p3": "Arriva con M2, 'le dimostrazioni che non hanno bisogno di un agente' (PROJECT.md). Nessun run block per ora. D5-C, il prompt disciplinato.",
+    "m5-p6": "stato 'library' — un beat alternativo o archiviato. Conservato di proposito (AGENTS.md regola 7); nessun run block per scelta.",
+    "m5-p4": "stato 'library' — un beat alternativo o archiviato. Conservato di proposito (AGENTS.md regola 7); nessun run block per scelta."
+  },
+  "_unblocked_note": "Every beat in the demo database that Banco cannot yet execute, and why. tests/test_run_blocks.py fails if an active beat appears in neither this map nor 'beats', so 'the demo exists but Banco cannot run it' cannot go unnoticed - which is the condition Banco was built to end.",
+  "_language_note": "Banco speaks Italian by default and English second. Every string in this file that reaches a surface carries both: the bare field is English and `<field>_it` is Italian, matching the convention of the vendored demo database. That is `teaches` / `teaches_it`, a pane's `label` / `label_it`, and the `_unblocked` / `_unblocked_it` maps. app/i18n.localized is the only code that knows the rule; nothing else may append '_it' to a field name. An untranslated entry falls back to English rather than disappearing, and tests/test_i18n.py reports which ones are still missing.",
+  "_inputs_note": "`replaces` is the placeholder in the English prompt and `replaces_it` the one in the Italian prompt. They are different strings — the deck writes '[PASTE RAW NOTES]' and '[INCOLLA APPUNTI GREZZI]' — so a single value would leave the pasted file unsubstituted in one language and send the model a literal placeholder. tests/test_i18n.py checks every input against the prompt it is meant to fill, in both languages."
 }

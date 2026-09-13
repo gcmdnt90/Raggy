@@ -1,11 +1,20 @@
-"""Daily token budget tracking backed by SQLite."""
+"""Daily token usage, measured and recorded. Backed by SQLite.
+
+Measurement only. `is_budget_exhausted` and `can_spend` lived here until
+2026-09-13 and were the last of the enforcement ADR 0005 removed: nothing had
+called either since the refusal came out of `LLMRouter`, and a function that
+answers "may I spend this" is an invitation to start refusing again on the
+strength of a character-count estimate. `remaining_budget` stays because it is a
+figure to *display* — a measured one, next to a configured ceiling.
+"""
 
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterable
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING
 
 from app.config import LOG_DIR, get_settings
 
@@ -115,12 +124,3 @@ def remaining_budget() -> int:
     """Return remaining tokens for today."""
     return max(0, get_daily_budget() - get_daily_usage())
 
-
-def is_budget_exhausted() -> bool:
-    """Return True when the daily budget is fully spent."""
-    return remaining_budget() <= 0
-
-
-def can_spend(tokens: int) -> bool:
-    """Return True if the requested token spend fits today's budget."""
-    return int(tokens) <= remaining_budget()

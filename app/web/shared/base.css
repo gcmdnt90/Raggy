@@ -2,24 +2,45 @@
    The harness is read from the back of a room. Type sizes here are floors,
    not suggestions: nothing on the projected surface goes below --fs-body. */
 :root {
-  --ink: #f2f2f0;
-  --ink-dim: #9a9a94;
-  --ground: #14140f;
-  --panel: #1e1e18;
-  --rule: #33332b;
-  --live: #4ec9a0;      /* a live call */
-  --replay: #d8a657;    /* a replayed recording — must be unmistakable */
-  --local: #7aa2f7;     /* egress: localhost */
-  --remote: #e06c75;    /* egress: a vendor endpoint */
+  --ink: #f3f5f4;
+  --ink-dim: #95a0a4;
+  --ground: #0b0d0e;
+  --panel: #121517;
+  --panel-raised: #181c1f;
+  --rule: #2c3337;
+  --live: #6ee7c7;      /* a live call */
+  --replay: #f2bf69;    /* a replayed recording — must be unmistakable */
+  --local: #78a7ff;     /* egress: localhost */
+  --remote: #ff727d;    /* egress: a vendor endpoint */
+  /* Deliberately outside the semantic set above. These only mark which pair a
+     pane belongs to; they must never be a status, so they are desaturated and
+     carry no meaning of their own. */
+  --pair-a: #3f4a4e;
+  --pair-b: #4e463f;
   --fs-body: 20px;
   --fs-prompt: 30px;
   --fs-title: 42px;
+  --radius-sm: 8px;
+  --radius: 12px;
+  --shadow: 0 18px 50px rgb(0 0 0 / 22%);
   --mono: ui-monospace, "Cascadia Code", "Consolas", monospace;
   --sans: system-ui, "Segoe UI", sans-serif;
 }
 * { box-sizing: border-box; }
+/* The `hidden` attribute is a promise the rest of this file must not break.
+   Any class that sets `display` outranks the user-agent rule — `.chip` does,
+   and `#mode`, the LIVE/REPLAY indicator, is a `.chip`. Without this it sits
+   on the projected surface as an empty pill before every run. */
+[hidden] { display: none !important; }
 body {
   margin: 0; background: var(--ground); color: var(--ink);
   font: var(--fs-body)/1.5 var(--sans);
+}
+button, input, select { font: inherit; }
+button, select { cursor: pointer; }
+button:focus-visible, input:focus-visible, select:focus-visible,
+summary:focus-visible, a:focus-visible {
+  outline: 2px solid var(--live);
+  outline-offset: 3px;
 }
 code, pre, .mono { font-family: var(--mono); }

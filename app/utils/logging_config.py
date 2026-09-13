@@ -10,6 +10,12 @@ import logging.handlers
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+# Imported from the submodule rather than the package: `app.utils.__init__`
+# imports this module, so `from app.utils import redact` would resolve against
+# a half-initialised package. See tests/test_imports.py for why import order is
+# treated as a regression surface here.
+from app.utils.redact import attach_to as attach_redaction
+
 DEFAULT_LOG_RETENTION_DAYS = 14
 
 
@@ -60,6 +66,13 @@ def setup_logging(level: str = "DEBUG") -> None:
     ch.setLevel(logging.WARNING)
     ch.setFormatter(fmt_console)
     root.addHandler(ch)
+
+    # ── Credential redaction ──────────────────────────────────────────────
+    # On the handlers, not on the root logger: a logger-level filter does not
+    # see records propagating up from child loggers, and every provider logs
+    # through one. SECURITY.md promises keys are redacted from logs; this is
+    # where that promise is kept for anything that reaches a file on disk.
+    attach_redaction((fh, ch))
 
     # ── Suppress noisy third-party loggers ────────────────────────────────
     _QUIET = [

@@ -14,6 +14,8 @@ from __future__ import annotations
 import ipaddress
 from urllib.parse import urlsplit
 
+from app.i18n import t
+
 __all__ = ["normalize_ollama_base_url"]
 
 _ALLOWED_SCHEMES = frozenset({"http", "https"})
@@ -39,7 +41,9 @@ def _is_loopback_host(host: str) -> bool:
         return False
 
 
-def normalize_ollama_base_url(url: str, *, allow_remote: bool = False) -> str:
+def normalize_ollama_base_url(
+    url: str, *, allow_remote: bool = False, lang: str | None = None
+) -> str:
     """Validate an Ollama base URL and return it in canonical form.
 
     Accepts only http/https URLs pointing at loopback, with no embedded
@@ -53,6 +57,11 @@ def normalize_ollama_base_url(url: str, *, allow_remote: bool = False) -> str:
         Permit a non-loopback host. Off by default. A remote Ollama means
         every prompt in the room leaves this machine, so the egress indicator
         must show it and the trainer must have chosen it deliberately.
+    lang:
+        The language of whoever will read the refusal. The console passes the
+        browser's; the settings validator, which runs before any request, gets
+        the default. The word "loopback" stays untranslated either way: it is
+        the term the message is about.
 
     Returns
     -------
@@ -68,33 +77,24 @@ def normalize_ollama_base_url(url: str, *, allow_remote: bool = False) -> str:
         surfaces during pre-flight where a trainer has to act on it.
     """
     if not url or not url.strip():
-        raise ValueError("Ollama base URL is empty.")
+        raise ValueError(t("network.ollama.empty", lang))
 
     parsed = urlsplit(url.strip())
 
     if parsed.scheme not in _ALLOWED_SCHEMES:
         raise ValueError(
-            f"Ollama base URL must use http or https, got {parsed.scheme or 'no'} "
-            f"scheme in {url!r}."
+            t("network.ollama.scheme", lang, scheme=parsed.scheme or "no", url=repr(url))
         )
 
     if parsed.username or parsed.password:
-        raise ValueError(
-            "Ollama base URL must not embed credentials. Remove the "
-            "user:password@ part; Ollama does not use them, and they would be "
-            "written to .env and to logs."
-        )
+        raise ValueError(t("network.ollama.credentials", lang))
 
     host = parsed.hostname
     if not host:
-        raise ValueError(f"Ollama base URL has no host: {url!r}.")
+        raise ValueError(t("network.ollama.no_host", lang, url=repr(url)))
 
     if not allow_remote and not _is_loopback_host(host):
-        raise ValueError(
-            f"Ollama base URL must point at this machine, got host {host!r}. "
-            "Loopback only (localhost, 127.0.0.1, ::1). A remote host would "
-            "send every prompt off this machine."
-        )
+        raise ValueError(t("network.ollama.not_loopback", lang, host=repr(host)))
 
     # Rebuild from validated parts rather than trusting the input string, and
     # drop the trailing slash so callers can append "/api/..." unconditionally.

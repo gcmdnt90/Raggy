@@ -11,6 +11,7 @@ import os
 import sys
 from pathlib import Path
 
+
 # ── Venv bootstrap ──────────────────────────────────────────────────────────
 def _ensure_venv():
     _root = Path(__file__).resolve().parent.parent
@@ -29,13 +30,13 @@ def _ensure_venv():
 _ensure_venv()
 
 import argparse  # noqa: E402
-import hashlib   # noqa: E402
+import hashlib  # noqa: E402
 
 # Ensure project root is on sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from app.config import KB_ROOT, CHROMA_PERSIST_DIR, get_settings
+from app.config import CHROMA_PERSIST_DIR, KB_ROOT, get_settings
 
 
 def load_documents() -> list[dict]:

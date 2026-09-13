@@ -3,7 +3,7 @@ catena: D2
 prodotto_da: D2
 consumato_da: D3, D4
 file: d2-criteri.md
-generato: 2026-09-03
+generato: 2026-09-12
 ---
 
 # D2 — I criteri, come li scrive il modello

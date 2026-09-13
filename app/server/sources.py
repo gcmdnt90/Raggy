@@ -56,6 +56,21 @@ def configured_api_providers(settings) -> list[str]:
     return [p for p in API_ORDER if _api_key_for(p, settings)]
 
 
+def api_source(provider: str) -> ModelSource:
+    """A source for `provider`, whether or not a pane is bound to it.
+
+    There are two API roles and there can be three keys, so a provider can be
+    configured and still fill no pane. Pre-flight still has to be able to call
+    it: the key nobody reports on is the one that turns out to be wrong in the
+    room.
+    """
+    return ModelSource(
+        provider=provider,
+        model=_default_model(provider),
+        egress=API_EGRESS[provider],
+    )
+
+
 def ollama_source(settings, *, check: bool = True) -> ModelSource | None:
     """The local source, or None when Ollama is not answering.
 
@@ -92,11 +107,7 @@ def available_sources(settings, *, check_ollama: bool = True) -> dict[str, Model
     # strict=False on purpose: one configured provider fills `primary` only,
     # and that is the take-home profile, not an error.
     for role, provider in zip(("primary", "secondary"), api, strict=False):
-        sources[role] = ModelSource(
-            provider=provider,
-            model=_default_model(provider),
-            egress=API_EGRESS[provider],
-        )
+        sources[role] = api_source(provider)
 
     local = ollama_source(settings, check=check_ollama)
     if local is not None:
@@ -121,14 +132,18 @@ def provider_kwargs(provider: str, settings) -> dict:
 
 
 def temperature_applies(provider: str, model: str) -> bool:
-    """Whether this model actually honours the temperature it is sent.
+    """Whether a temperature sent for this model actually reaches the API.
 
-    Anthropic removed sampling parameters from models after Claude Opus 4.6,
-    and `app.llm.providers.anthropic._supports_temperature` already knows the
-    rule. The harness has to ask, because displaying "temperature 1.0" beside a
-    model that ignores it would put a false statement on the projected surface -
-    and the temperature beat is one of the three this application exists to make
-    showable. A provider with no such rule honours what it is sent.
+    `app.llm.providers.anthropic.temperature_is_applied` owns the rule, and it
+    has two halves: the model has to honour the parameter and the installed SDK
+    has to carry it. The second half is not hypothetical — `anthropic==1.2.0`
+    dropped `temperature` from `Messages.create` entirely, so today no Anthropic
+    pane sends one.
+
+    The harness has to ask, because displaying "temperature 1.0" beside a call
+    that carried none would put a false statement on the projected surface, and
+    the temperature beat is one of the three this application exists to make
+    showable. A provider with no such rule applies what it is sent.
 
     An import failure here is deliberately not caught. "I could not check" is
     not the same claim as "it applies", and a provider whose module will not
@@ -137,9 +152,9 @@ def temperature_applies(provider: str, model: str) -> bool:
     if provider != "anthropic":
         return True
 
-    from app.llm.providers.anthropic import _supports_temperature
+    from app.llm.providers.anthropic import temperature_is_applied
 
-    return _supports_temperature(model)
+    return temperature_is_applied(model)
 
 
 def profile_name(sources: dict[str, ModelSource]) -> str:

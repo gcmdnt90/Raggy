@@ -24,9 +24,6 @@ venv/
 *.swo
 *~
 
-# Streamlit
-.streamlit/cache/
-
 # ChromaDB local database (rebuilt on demand)
 knowledge_base/chroma_db/
 
@@ -49,4 +46,7 @@ htmlcov/
 # Misc
 *.bak
 *.tmp
-.raggy-update-check.json
+
+# Scratch produced by an assistant working in the repository. Not source, and
+# not something a clean checkout should carry.
+Claude outputs/

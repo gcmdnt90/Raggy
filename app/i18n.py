@@ -1,266 +1,530 @@
-"""Raggy i18n — Lightweight internationalization with English/Italian support."""
+"""Banco i18n — one language per request, never one per process.
+
+Italian is the default. Banco is delivered to Italian clients and the harness is
+read by a room that speaks Italian; English is the second language, kept because
+the demo database and the documentation are written in it and because a
+non-Italian room is a real case.
+
+Two things live here and nothing else:
+
+* :func:`t` — the catalogue of strings Banco *generates*. Pre-flight lines,
+  refusal reasons, error text. These are produced by the server and rendered on
+  a surface, so they are translated here rather than in the page.
+* :func:`localized` — the accessor for strings Banco *carries*. The demo
+  database and ``run-blocks.json`` are bilingual by convention: the bare field
+  is English and ``<field>_it`` is Italian. Nothing else may know that rule.
+
+The language is a parameter on every call. The previous version of this module
+held ``_ui_language`` as module state, inherited from a single-user Streamlit
+app; Banco serves two surfaces that can be open at once in two browsers, and a
+process-wide language would let the console's setting change what the projector
+is showing. Do not reintroduce it.
+
+Strings the *user* wrote — prompt text, model output, a provider's own error
+message — are never translated. They are shown as they are.
+"""
 
 from __future__ import annotations
 
-# Language is process state, not framework state: the server holds one UI
-# language per run and the surfaces read it. Do not reintroduce a UI-framework
-# dependency in this module.
-_ui_language: str | None = None
+from collections.abc import Mapping
 
-SUPPORTED_LANGUAGES = {"en": "English", "it": "Italiano"}
-DEFAULT_LANGUAGE = "en"
+#: Language code -> the name of that language, written in it.
+SUPPORTED_LANGUAGES: dict[str, str] = {"it": "Italiano", "en": "English"}
 
-# ---------------------------------------------------------------------------
-# Translation dictionaries
-# ---------------------------------------------------------------------------
+#: What Banco speaks when nobody has said otherwise.
+DEFAULT_LANGUAGE = "it"
 
-_TRANSLATIONS: dict[str, dict[str, str]] = {
-    # ── Navigation & global ───────────────────────────────────────────────
-    "app_title": {"en": "Raggy", "it": "Raggy"},
-    "app_subtitle": {"en": "RAG-Powered Knowledge Assistant", "it": "Assistente basato su RAG"},
-    "nav_chat": {"en": "Chat", "it": "Chat"},
-    "nav_settings": {"en": "Settings", "it": "Impostazioni"},
-    "nav_navigation": {"en": "Navigation", "it": "Navigazione"},
-    "version_label": {"en": "Raggy v0.1.1", "it": "Raggy v0.1.1"},
-    "llm_not_configured": {"en": "LLM not configured", "it": "LLM non configurato"},
-    "llm_go_settings": {
-        "en": "Go to Settings to configure your LLM provider.",
-        "it": "Vai su Impostazioni per configurare il provider LLM.",
-    },
-    "reset_conversation": {"en": "Reset conversation", "it": "Reimposta conversazione"},
-    "budget_used": {"en": "Budget used: {used} / {budget} tokens", "it": "Budget usato: {used} / {budget} token"},
-    "budget_reached": {"en": "Budget reached, try again tomorrow.", "it": "Budget raggiunto, riprova domani."},
+#: Where a missing translation falls back to before giving up on the key. The
+#: demo database is authored in English, so English is the language most likely
+#: to have an entry.
+FALLBACK_LANGUAGE = "en"
 
-    # ── Chat ──────────────────────────────────────────────────────────────
-    "chat_title": {"en": "Knowledge Assistant", "it": "Assistente Knowledge Base"},
-    "chat_subtitle": {
-        "en": "Ask questions about your knowledge base documents.",
-        "it": "Fai domande sui documenti nella Knowledge Base.",
-    },
-    "chat_placeholder": {"en": "Type your question...", "it": "Scrivi la tua domanda..."},
-    "chat_suggestions_title": {"en": "Here are some ideas to get started:", "it": "Ecco alcuni spunti per iniziare:"},
-    "chat_sugg_1": {"en": "What topics are covered in the knowledge base?", "it": "Quali argomenti sono trattati nella Knowledge Base?"},
-    "chat_sugg_2": {"en": "Summarize the key points from the documents.", "it": "Riassumi i punti chiave dai documenti."},
-    "chat_sugg_3": {"en": "What best practices are mentioned?", "it": "Quali best practice sono menzionate?"},
-    "chat_sugg_4": {"en": "Are there any regulations or standards referenced?", "it": "Ci sono normative o standard di riferimento?"},
-    "chat_configure_llm": {
-        "en": "Configure the LLM provider in Settings to use the chatbot.",
-        "it": "Configura il provider LLM nella pagina Impostazioni per utilizzare il chatbot.",
-    },
-    "chat_error": {"en": "Error", "it": "Errore"},
-    "chat_configure_msg": {
-        "en": "Please configure the LLM provider in Settings.",
-        "it": "Per favore, configura il provider LLM nella pagina Impostazioni.",
-    },
-
-    # ── Settings ──────────────────────────────────────────────────────────
-    "settings_title": {"en": "Settings", "it": "Impostazioni"},
-    "settings_provider": {"en": "LLM Provider", "it": "Provider LLM"},
-    "settings_select_provider": {"en": "Select provider", "it": "Seleziona provider"},
-    "settings_ollama_url": {"en": "Ollama URL", "it": "Ollama URL"},
-    "settings_ollama_url_help": {
-        "en": "Address of the Ollama server. Default: http://localhost:11434",
-        "it": "Indirizzo del server Ollama. Default: http://localhost:11434",
-    },
-    "settings_ollama_connected": {"en": "Ollama connected", "it": "Ollama connesso"},
-    "settings_ollama_models_available": {"en": "models available", "it": "modelli disponibili"},
-    "settings_ollama_unreachable": {
-        "en": "Ollama unreachable or no models installed.\nStart Ollama with `ollama serve` and download a model with `ollama pull <name>`.",
-        "it": "Ollama non raggiungibile o nessun modello installato.\nAvvia Ollama con `ollama serve` e scarica un modello con `ollama pull <nome>`.",
-    },
-    "settings_ollama_model": {"en": "Ollama Model", "it": "Modello Ollama"},
-    "settings_ollama_model_manual": {"en": "Ollama Model (enter manually)", "it": "Modello Ollama (inserisci manualmente)"},
-    "settings_ollama_model_hint": {"en": "e.g. gemma3:4b, qwen3:4b, mistral-nemo", "it": "Es: gemma3:4b, qwen3:4b, mistral-nemo"},
-    "settings_timeout": {"en": "Generation timeout (seconds)", "it": "Timeout generazione (secondi)"},
-    "settings_timeout_help": {
-        "en": "Local models can be slow — increase if generation cuts off.",
-        "it": "Modelli locali lenti richiedono timeout più alti. Aumenta se la generazione si interrompe.",
-    },
-    "settings_api_key": {"en": "API Key", "it": "Chiave API"},
-    "settings_api_key_help": {
-        "en": "The key is saved to .env only when you press 'Save as Default'.",
-        "it": "La chiave viene salvata in .env solo se premi 'Salva come Default'.",
-    },
-    "settings_model": {"en": "Model", "it": "Modello"},
-    "settings_model_help": {
-        "en": "Choose a catalog model or type an exact provider model ID.",
-        "it": "Scegli un modello dal catalogo o inserisci l'ID esatto del provider.",
-    },
-    "settings_models_live": {
-        "en": "Live model list from provider",
-        "it": "Lista modelli aggiornata dal provider",
-    },
-    "settings_models_fallback": {
-        "en": "Showing the built-in catalog. Enter a valid API key and refresh for the live list.",
-        "it": "Catalogo integrato. Inserisci una chiave API valida e aggiorna per la lista live.",
-    },
-    "settings_models_refresh": {"en": "Refresh model list", "it": "Aggiorna lista modelli"},
-    "settings_models_refresh_failed": {
-        "en": "Live catalog unavailable. Check the API key; the built-in catalog remains usable.",
-        "it": "Catalogo live non disponibile. Verifica la chiave API; il catalogo integrato resta utilizzabile.",
-    },
-    "settings_embedding_title": {"en": "Embedding Model (local)", "it": "Modello Embedding (locale)"},
-    "settings_hf_token": {"en": "Hugging Face Token (optional)", "it": "Token Hugging Face (opzionale)"},
-    "settings_hf_token_help": {
-        "en": "HF token for authenticated downloads of the local embedding model. Without it, public downloads work but with lower rate limits.",
-        "it": "Token HF per download autenticati del modello di embedding locale. Senza token funziona ugualmente ma con rate limit ridotti.",
-    },
-    "settings_gen_params": {"en": "Generation Parameters", "it": "Parametri Generazione"},
-    "settings_temperature": {"en": "Temperature", "it": "Temperature"},
-    "settings_temperature_help": {
-        "en": "Lower = more deterministic. Higher = more creative.",
-        "it": "Più basso = risposte più deterministiche. Più alto = più creative.",
-    },
-    "settings_max_tokens": {"en": "Max Tokens", "it": "Max Token"},
-    "settings_daily_budget": {"en": "Daily token budget", "it": "Budget token giornaliero"},
-    "settings_test_connection": {"en": "🔌 Test Connection", "it": "🔌 Testa Connessione"},
-    "settings_testing": {"en": "Testing...", "it": "Test in corso..."},
-    "settings_connection_ok": {"en": "Connection successful!", "it": "Connessione riuscita!"},
-    "settings_pipeline_ready": {"en": "RAG Pipeline ready!", "it": "Pipeline RAG pronta!"},
-    "settings_connection_failed": {
-        "en": "Connection failed. Check credentials and that the service is running.",
-        "it": "Connessione fallita. Verifica le credenziali e che il servizio sia attivo.",
-    },
-    "settings_save": {"en": "💾 Save as Default", "it": "💾 Salva come Default"},
-    "settings_save_help": {
-        "en": "Writes settings to .env — they will be loaded on every startup",
-        "it": "Scrive le impostazioni nel file .env — saranno caricate ad ogni avvio",
-    },
-    "settings_saved": {"en": "Settings saved to .env!", "it": "Impostazioni salvate in .env!"},
-    "settings_save_error": {"en": "Error saving settings", "it": "Errore nel salvataggio"},
-    "settings_system_status": {"en": "System Status", "it": "Stato Sistema"},
-    "settings_active_provider": {"en": "Active provider", "it": "Provider attivo"},
-    "settings_connected": {"en": "connected", "it": "connesso"},
-    "settings_not_configured": {"en": "not configured", "it": "non configurato"},
-    "settings_kb_chunks": {"en": "KB chunks", "it": "KB chunks"},
-    "settings_kb_not_indexed": {"en": "not indexed", "it": "non indicizzata"},
-    "settings_config_details": {"en": "Configuration details", "it": "Dettagli configurazione"},
-    "settings_language_title": {"en": "Language / Lingua", "it": "Lingua / Language"},
-    "settings_language_label": {"en": "Interface language", "it": "Lingua interfaccia"},
-
-    # ── Ollama Setup ──────────────────────────────────────────────────────
-    "ollama_setup_title": {"en": "Ollama Setup", "it": "Setup Ollama"},
-    "ollama_not_installed": {
-        "en": "Ollama is not installed on this system.",
-        "it": "Ollama non è installato su questo sistema.",
-    },
-    "ollama_install_btn": {"en": "⬇️ Install Ollama", "it": "⬇️ Installa Ollama"},
-    "ollama_installing": {"en": "Downloading and installing Ollama...", "it": "Download e installazione di Ollama..."},
-    "ollama_install_ok": {"en": "Ollama installed successfully! Please restart the app.", "it": "Ollama installato con successo! Riavvia l'app."},
-    "ollama_install_fail": {"en": "Ollama installation failed", "it": "Installazione di Ollama fallita"},
-    "ollama_sysinfo_title": {"en": "System Information", "it": "Informazioni Sistema"},
-    "ollama_recommend_title": {"en": "Recommended Models", "it": "Modelli Consigliati"},
-    "ollama_pull_btn": {"en": "Download", "it": "Scarica"},
-    "ollama_pulling": {"en": "Downloading model...", "it": "Download modello in corso..."},
-    "ollama_pull_ok": {"en": "Model downloaded successfully!", "it": "Modello scaricato con successo!"},
-    "ollama_pull_fail": {"en": "Failed to download model", "it": "Errore nel download del modello"},
-
-    # ── Privacy ───────────────────────────────────────────────────────────
-    "privacy_warning": {
-        "en": "**Privacy Notice:** You are using a cloud provider. Data will be sent to the selected provider's servers. Use Ollama to keep everything local.",
-        "it": "**Nota Privacy:** Stai usando un provider cloud. I dati verranno inviati ai server del provider selezionato. Per mantenere i dati completamente locali, usa Ollama.",
-    },
-
-    # ── Admin ─────────────────────────────────────────────────────────────
-    "admin_title": {"en": "Raggy Admin", "it": "Raggy Admin"},
-    "admin_login_title": {"en": "Raggy — Admin Panel", "it": "Raggy — Pannello Admin"},
-    "admin_password": {"en": "Password", "it": "Password"},
-    "admin_login": {"en": "Login", "it": "Accedi"},
-    "admin_wrong_password": {"en": "Wrong password", "it": "Password errata"},
-    "admin_logout": {"en": "Logout", "it": "Logout"},
-    "admin_section_chatbot": {"en": "Admin Chat", "it": "Chatbot Admin"},
-    "admin_section_prompts": {"en": "Prompts", "it": "Prompt"},
-    "admin_section_kb": {"en": "Knowledge Base", "it": "Knowledge Base"},
-    "admin_section_settings": {"en": "Settings", "it": "Impostazioni"},
-    "admin_section_logs": {"en": "Logs", "it": "Log"},
-
-    # ── Admin KB ──────────────────────────────────────────────────────────
-    "kb_title": {"en": "Knowledge Base Manager", "it": "Gestione Knowledge Base"},
-    "kb_docs_md": {"en": "Documents", "it": "Documenti"},
-    "kb_chunks_indexed": {"en": "Chunks indexed", "it": "Chunks indicizzati"},
-    "kb_files_in_kb": {"en": "Files in Knowledge Base:", "it": "File nella Knowledge Base:"},
-    "kb_files_none": {
-        "en": "No source files are present. Upload a document below or restore a missing indexed source.",
-        "it": "Nessun file sorgente presente. Carica un documento qui sotto o ripristina una sorgente indicizzata mancante.",
-    },
-    "kb_missing_sources": {
-        "en": "{count} indexed source file(s) are missing from disk. Re-upload them before re-indexing.",
-        "it": "{count} file sorgente indicizzati non sono presenti sul disco. Ricaricali prima di reindicizzare.",
-    },
-    "kb_upload_title": {"en": "Upload documents to KB:", "it": "Carica documenti nella KB:"},
-    "kb_upload_file": {"en": "Upload file", "it": "Carica file"},
-    "kb_category": {"en": "Category", "it": "Categoria"},
-    "kb_new_category": {"en": "New category name", "it": "Nome nuova categoria"},
-    "kb_add_btn": {"en": "Add to KB", "it": "Aggiungi alla KB"},
-    "kb_added": {"en": "added to", "it": "aggiunto a"},
-    "kb_reindex_btn": {"en": "Re-index entire KB", "it": "Re-indicizza tutta la KB"},
-    "kb_reindexing": {"en": "Re-indexing...", "it": "Re-indicizzazione in corso..."},
-    "kb_reindexed": {"en": "Knowledge Base re-indexed!", "it": "Knowledge Base re-indicizzata!"},
-    "kb_view": {"en": "View", "it": "Vedi"},
-    "kb_edit": {"en": "Edit", "it": "Modifica"},
-    "kb_download": {"en": "Download original file", "it": "Scarica il file originale"},
-    "kb_view_error": {"en": "Could not read file", "it": "Impossibile leggere il file"},
-    "kb_delete_confirm": {"en": "Permanently delete", "it": "Eliminare definitivamente"},
-    "kb_delete_yes": {"en": "Yes, delete", "it": "Sì, elimina"},
-    "kb_cancel": {"en": "Cancel", "it": "Annulla"},
-    "kb_save": {"en": "Save", "it": "Salva"},
-    "kb_saved": {"en": "Saved.", "it": "Salvato."},
-    "kb_deleted": {"en": "deleted.", "it": "eliminato."},
-    "kb_close": {"en": "Close", "it": "Chiudi"},
-    "kb_no_reindex_note": {"en": "Changes are not automatically re-indexed.", "it": "Le modifiche non vengono re-indicizzate automaticamente."},
-    "kb_unsupported_file": {"en": "Unsupported file type.", "it": "Tipo file non supportato."},
-    "kb_unsafe_path": {"en": "Unsafe upload path rejected.", "it": "Percorso di caricamento non sicuro rifiutato."},
-    "kb_upload_invalid": {"en": "Upload rejected", "it": "Caricamento rifiutato"},
-
-    # ── Admin Prompts ─────────────────────────────────────────────────────
-    "prompts_title": {"en": "System Prompt Editor", "it": "Editor System Prompt"},
-    "prompts_type": {"en": "Prompt type", "it": "Tipo di prompt"},
-    "prompts_chatbot": {"en": "General Chatbot", "it": "Chatbot Generale"},
-    "prompts_admin": {"en": "Admin Chatbot", "it": "Admin Chatbot"},
-    "prompts_textarea_help": {"en": "Edit the prompt and save. Changes are immediate.", "it": "Modifica il prompt e salva. Le modifiche sono immediate."},
-    "prompts_save": {"en": "Save", "it": "Salva"},
-    "prompts_saved": {"en": "Prompt saved!", "it": "Prompt salvato!"},
-    "prompts_reset": {"en": "Reset to Default", "it": "Ripristina Default"},
-
-    # ── Admin Logs ────────────────────────────────────────────────────────
-    "logs_title": {"en": "Logs & Usage", "it": "Log e Utilizzo"},
-    "logs_today": {"en": "Conversations today", "it": "Conversazioni oggi"},
-    "logs_total": {"en": "Total reports", "it": "Report generati (totale)"},
-    "logs_recent": {"en": "Recent interactions:", "it": "Ultime interazioni:"},
-    "logs_none": {"en": "No logs available.", "it": "Nessun log disponibile."},
-
-    # ── Setup Wizard ──────────────────────────────────────────────────────
-    "wizard_title": {"en": "Raggy — Setup Wizard", "it": "Raggy — Setup Wizard"},
-    "wizard_welcome": {"en": "Welcome! This wizard will configure Raggy on your PC.", "it": "Benvenuto! Questo wizard configurerà Raggy sul tuo PC."},
-}
+#: How a language code maps onto the database's field-naming convention: the
+#: bare field is English, `_it` is Italian. One place, so that adding a third
+#: language is an entry here rather than a search for string concatenation.
+FIELD_SUFFIX: dict[str, str] = {"it": "_it", "en": ""}
 
 
-def t(key: str, **kwargs) -> str:
-    """Return the translated string for *key* in the active language.
+def normalize(lang: str | None) -> str:
+    """Coerce anything into a supported language code.
 
-    Falls back to English if the key or language is missing.
-    Supports ``{placeholder}`` formatting via **kwargs.
+    Accepts what a browser or a query string actually sends — ``it-IT``,
+    ``IT``, ``it_IT``, ``None`` — and never raises: an unreadable language is a
+    reason to speak Italian, not a reason to refuse a request.
     """
-    lang = get_language()
-    entry = _TRANSLATIONS.get(key)
+    if not lang:
+        return DEFAULT_LANGUAGE
+    code = str(lang).strip().lower().replace("_", "-").split("-")[0]
+    return code if code in SUPPORTED_LANGUAGES else DEFAULT_LANGUAGE
+
+
+def t(key: str, lang: str | None = None, **kwargs) -> str:
+    """The string for `key` in `lang`, formatted with `kwargs`.
+
+    A missing key returns the key itself rather than an empty string: a bare
+    ``preflight.chain.ok`` on a screen is a bug anyone can see and report,
+    whereas a blank line looks like a working feature with nothing to say.
+    """
+    entry = CATALOG.get(key)
     if entry is None:
-        return key  # missing key — return as-is for debugging
-    text = entry.get(lang, entry.get("en", key))
+        return key
+
+    code = normalize(lang)
+    text = entry.get(code) or entry.get(DEFAULT_LANGUAGE) or entry.get(FALLBACK_LANGUAGE) or key
     if kwargs:
-        text = text.format(**kwargs)
+        try:
+            text = text.format(**kwargs)
+        except (IndexError, KeyError):
+            # A malformed placeholder must not take down a pre-flight line.
+            return text
     return text
 
 
-def get_language() -> str:
-    """Return the current UI language code (reads from session state)."""
-    try:
-        return _ui_language or DEFAULT_LANGUAGE
-    except Exception:
-        return DEFAULT_LANGUAGE
+def localized(node: Mapping | None, field: str, lang: str | None = None, default=None):
+    """Read `field` from a bilingual database node in `lang`.
+
+    Falls through to the bare (English) field when the translation is absent or
+    empty, which is the common case: the demo database translates prompt text
+    per sector variant but leaves plenty of nodes English-only.
+    """
+    if not isinstance(node, Mapping):
+        return default
+    value = node.get(f"{field}{FIELD_SUFFIX[normalize(lang)]}")
+    if value in (None, ""):
+        value = node.get(field)
+    return default if value in (None, "") else value
 
 
-def set_language(lang: str) -> None:
-    """Set the UI language (persists in session state)."""
-    if lang in SUPPORTED_LANGUAGES:
-        global _ui_language
-        _ui_language = lang
+# ---------------------------------------------------------------------------
+# The catalogue — strings Banco generates.
+#
+# Keys are namespaced by the module that emits them. Anything rendered on a
+# page by JavaScript belongs in app/web/shared/strings.*.js instead; this file
+# is only for text that crosses the wire already written.
+# ---------------------------------------------------------------------------
+
+CATALOG: dict[str, dict[str, str]] = {
+    # ── pre-flight ────────────────────────────────────────────────────────
+    "preflight.password.missing": {
+        "it": "La stage console non ha una password. È raggiungibile da "
+              "qualunque cosa giri su questa macchina.",
+        "en": "The stage console has no password. It is reachable by anything "
+              "running on this machine.",
+    },
+    "preflight.password.missing.action": {
+        "it": "Impostane una qui sotto. Fino ad allora questa console è aperta.",
+        "en": "Set one below. Until then this console is open.",
+    },
+    "preflight.password.ok": {
+        "it": "Password della console impostata.",
+        "en": "Console password set.",
+    },
+    # ── demo material ─────────────────────────────────────────────────────
+    # The pack is generated, not shipped, so "missing" here always has the same
+    # fix and the line carries it: a trainer reading this is minutes from a
+    # lesson, not debugging a checkout.
+    "preflight.material.unknown_sector": {
+        "it": "Settore sconosciuto: {sector}. Non è nel database delle demo.",
+        "en": "Unknown sector: {sector}. It is not in the demo database.",
+    },
+    "preflight.material.no_pack": {
+        "it": "Il pacchetto di questo settore non è stato generato: {root}",
+        "en": "The pack for this sector does not exist: {root}",
+    },
+    "preflight.material.incomplete": {
+        "it": "{count} demo su {total} hanno materiale mancante: {names}",
+        "en": "{count} of {total} demos are missing material: {names}",
+    },
+    "preflight.material.action": {
+        "it": "Generalo con:  {command}",
+        "en": "Generate it with:  {command}",
+    },
+    "preflight.material.ok": {
+        "it": "Materiale completo per tutte e {total} le demo.",
+        "en": "Material complete for all {total} demos.",
+    },
+    "preflight.chain.unknown_sector": {
+        "it": "Settore sconosciuto: {sector}.",
+        "en": "Unknown sector: {sector}.",
+    },
+    "preflight.chain.missing": {
+        "it": "{missing} file di consegna su {total} mancanti: {names}",
+        "en": "{missing} of {total} handover files missing: {names}",
+    },
+    "preflight.chain.missing.action": {
+        "it": "Rigenerali con demo/kit/generate_chain.py prima della lezione.",
+        "en": "Regenerate them with demo/kit/generate_chain.py before the lesson.",
+    },
+    # The files are all there, so the chain has not stopped. What it is about
+    # to hand the next demo is material in another language, which reads on a
+    # projected screen as a model that answered in the wrong one.
+    "preflight.chain.other_language": {
+        "it": "{count} file della catena sono stati scritti in un'altra lingua: "
+              "{names}. Il prossimo modulo li incollerebbe sotto un prompt "
+              "italiano.",
+        "en": "{count} chain files were written in another language: {names}. "
+              "The next module would paste them under an English prompt.",
+    },
+    "preflight.chain.other_language.action": {
+        "it": "Riesegui quei moduli nella lingua della lezione, oppure "
+              "rigenera la catena con demo/kit/generate_chain.py.",
+        "en": "Re-run those modules in the language of the lesson, or "
+              "regenerate the chain with demo/kit/generate_chain.py.",
+    },
+    "preflight.chain.ok": {
+        "it": "Tutti i {total} file di consegna sono presenti.",
+        "en": "All {total} handover files present.",
+    },
+    # The Italian says "replay" because CONTEXT.md defines Replay as vocabulary
+    # the room is taught. Translating it would rename a concept mid-lesson.
+    "preflight.recordings.none": {
+        "it": "Nessuna registrazione. Un pannello che degrada al replay mostrerà "
+              "il suo motivo e nessun output.",
+        "en": "No recordings. A degraded pane will show its reason and no output.",
+    },
+    "preflight.recordings.none.action": {
+        "it": "Catturale durante la prova, quando M3 sarà pronto.",
+        "en": "Capture during the dry run once M3 lands.",
+    },
+    "preflight.recordings.ok": {
+        "it": "{count} registrazioni su disco.",
+        "en": "{count} recordings on disk.",
+    },
+    "preflight.source.ok": {
+        "it": "{role}: {provider} ha risposto come {model}.",
+        "en": "{role}: {provider} answered as {model}.",
+    },
+    "preflight.source.refused": {
+        "it": "{role}: {provider} ha rifiutato — {error}",
+        "en": "{role}: {provider} refused - {error}",
+    },
+    "preflight.source.key_stored_call_failed": {
+        "it": "La chiave è salvata ma la chiamata è fallita.",
+        "en": "The key is stored but the call failed.",
+    },
+    # Ollama has no key, so "the key is stored" sent a trainer looking for a
+    # credential that does not exist.
+    "preflight.source.ollama_no_model": {
+        "it": "Ollama risponde, ma non per questo modello. Scaricalo, oppure "
+              "imposta LLM_MODEL su uno che ha già.",
+        "en": "Ollama is answering, but not for this model. Pull it, or set "
+              "LLM_MODEL to one it has.",
+    },
+    # The model ids inside are the provider's own and are never translated.
+    "preflight.source.models_hint": {
+        "it": "Disponibili secondo l'API: {models}.",
+        "en": "Available, per the API: {models}.",
+    },
+    # The same list, from `model_catalog.FALLBACK_MODELS` rather than from the
+    # provider. It says so, because a trainer acting on a stale static list
+    # picks a model the API will refuse — while fixing the error that produced
+    # this hint.
+    "preflight.source.models_hint_fallback": {
+        "it": "Elenco di riserva, non dall'API (l'API non ha risposto): "
+              "{models}. Da verificare prima di sceglierne uno.",
+        "en": "Backstop list, not from the API (the API did not answer): "
+              "{models}. Verify before choosing one.",
+    },
+    "preflight.source.failed": {
+        "it": "{role}: {provider} non ha risposto — {error}",
+        "en": "{role}: {provider} failed - {error}",
+    },
+    "preflight.source.no_pane": {
+        "it": "{provider} (configurato, nessun pannello)",
+        "en": "{provider} (configured, no pane)",
+    },
+    # ── stage console ─────────────────────────────────────────────────────
+    "console.auth.required": {
+        "it": "Password della stage console richiesta.",
+        "en": "Stage console password required.",
+    },
+    "console.keys.nothing": {
+        "it": "Niente da salvare.",
+        "en": "Nothing to save.",
+    },
+    "console.keys.saved": {
+        "it": "Impostazioni salvate: {count}.",
+        "en": "Saved {count} setting(s).",
+    },
+    "console.keys.clear_hint": {
+        "it": "Invia il valore letterale CLEAR per azzerare una chiave.",
+        "en": "Send the literal value CLEAR to blank a key.",
+    },
+    "console.keys.cleared": {
+        "it": "Chiavi azzerate: {count}.",
+        "en": "Cleared {count} key(s).",
+    },
+    # ── harness routes ────────────────────────────────────────────────────
+    "harness.unknown_demo_or_sector": {
+        "it": "demo o settore sconosciuto: {what}",
+        "en": "unknown demo or sector: {what}",
+    },
+    "harness.unknown_demo_beat_or_sector": {
+        "it": "demo, beat o settore sconosciuto: {what}",
+        "en": "unknown demo, beat or sector: {what}",
+    },
+    # ── run planning ──────────────────────────────────────────────────────
+    "runs.unavailable_no_source": {
+        "it": "nessuna fonte modello configurata per questo ruolo",
+        "en": "no model source configured for this role",
+    },
+    "runs.not_executable": {
+        "it": "{beat_id} non è eseguibile: {reason}",
+        "en": "{beat_id} is not executable: {reason}",
+    },
+    "runs.no_run_block": {
+        "it": "nessun run block definito",
+        "en": "no run block defined",
+    },
+    "runs.run_blocks_missing": {
+        "it": "Run block mancanti in {path}. Senza di essi Banco non può eseguire "
+              "nessun beat; vedi docs/adr/0003.",
+        "en": "Run blocks missing at {path}. Banco cannot execute any beat "
+              "without them; see docs/adr/0003.",
+    },
+    "runs.input_escapes_sector": {
+        "it": "Il percorso di input esce dalla cartella demo del settore: {path}",
+        "en": "Input path escapes the sector demo directory: {path}",
+    },
+    "runs.input_missing": {
+        "it": "File di input mancante: {path}",
+        "en": "Input file missing: {path}",
+    },
+    "runs.pane_fallback_label": {
+        "it": "pannello {index}",
+        "en": "pane {index}",
+    },
+    # ── the handover files a run writes ───────────────────────────────────
+    "chain.written_by": {
+        "it": "Scritto da Banco a partire da {beat_id} il {stamp}.",
+        "en": "Written by Banco from {beat_id} on {stamp}.",
+    },
+    "chain.overwritten": {
+        "it": "Settore: {sector}. Sovrascritto a ogni esecuzione riuscita; "
+              "vedi PROJECT.md invariante 3.",
+        "en": "Sector: {sector}. Overwritten on a successful run; "
+              "see PROJECT.md invariant 3.",
+    },
+    "chain.produced_by": {
+        "it": "{provider} · {model} · temperatura {temperature}",
+        "en": "{provider} · {model} · temperature {temperature}",
+    },
+
+    # ── network validation ────────────────────────────────────────────────
+    # "loopback" stays untranslated in Italian: it is the term the error is
+    # about, and a trainer searching for it should find it in either language.
+    "network.ollama.empty": {
+        "it": "L'indirizzo di Ollama è vuoto.",
+        "en": "Ollama base URL is empty.",
+    },
+    "network.ollama.scheme": {
+        "it": "L'indirizzo di Ollama deve usare http o https; trovato lo schema "
+              "{scheme} in {url}.",
+        "en": "Ollama base URL must use http or https, got {scheme} scheme in {url}.",
+    },
+    "network.ollama.credentials": {
+        "it": "L'indirizzo di Ollama non deve contenere credenziali. Togli la "
+              "parte user:password@: Ollama non la usa, e finirebbe scritta in "
+              ".env e nei log.",
+        "en": "Ollama base URL must not embed credentials. Remove the "
+              "user:password@ part; Ollama does not use them, and they would be "
+              "written to .env and to logs.",
+    },
+    "network.ollama.no_host": {
+        "it": "L'indirizzo di Ollama non ha un host: {url}.",
+        "en": "Ollama base URL has no host: {url}.",
+    },
+    "network.ollama.not_loopback": {
+        "it": "L'indirizzo di Ollama deve puntare a questa macchina; trovato "
+              "l'host {host}. Solo loopback (localhost, 127.0.0.1, ::1). Un host "
+              "remoto manderebbe ogni prompt fuori da questa macchina.",
+        "en": "Ollama base URL must point at this machine, got host {host}. "
+              "Loopback only (localhost, 127.0.0.1, ::1). A remote host would "
+              "send every prompt off this machine.",
+    },
+    # ── parameters that did not reach the API ─────────────────────────────
+    # Every one of these is rendered beside a pane on the projected surface,
+    # in place of the value that pane would otherwise appear to claim. They say
+    # what happened and, where a trainer can act on it, what to change. They
+    # never say "unsupported" on its own: "this model does not accept it" and
+    # "the installed library will not carry it" are different facts with
+    # different fixes, and the whole reason `dropped` carries a reason rather
+    # than a flag is that the room is entitled to the difference.
+    "drop.temperature.sdk_lacks_parameter": {
+        "it": "temperatura non inviata: la libreria installata non la accetta "
+              "su questa chiamata.",
+        "en": "temperature not sent: the installed library does not accept it "
+              "on this call.",
+    },
+    "drop.temperature.model_ignores": {
+        "it": "temperatura non inviata: questo modello non la applica.",
+        "en": "temperature not sent: this model does not apply it.",
+    },
+    "drop.temperature.thinking_needs_default": {
+        "it": "temperatura non inviata: con un budget di ragionamento attivo "
+              "questo modello ammette solo il valore predefinito.",
+        "en": "temperature not sent: with a reasoning budget active this model "
+              "accepts only its default value.",
+    },
+    "drop.temperature.reasoning_model": {
+        "it": "temperatura non inviata: i modelli di ragionamento non "
+              "espongono il campionamento.",
+        "en": "temperature not sent: reasoning models do not expose sampling.",
+    },
+    "drop.max_tokens.sdk_lacks_parameter": {
+        "it": "tetto di generazione non inviato: la libreria installata non "
+              "accetta nessuno dei due campi.",
+        "en": "generation ceiling not sent: the installed library accepts "
+              "neither field.",
+    },
+    "drop.think.sdk_lacks_parameter": {
+        "it": "ragionamento non inviato: la libreria installata non lo accetta.",
+        "en": "reasoning not sent: the installed library does not accept it.",
+    },
+    "drop.think.anthropic_takes_a_budget": {
+        "it": "ragionamento non inviato: qui è un budget in token, non un "
+              "livello. Indica un numero.",
+        "en": "reasoning not sent: here it is a token budget, not a level. "
+              "State a number.",
+    },
+    "drop.think.google_takes_a_budget": {
+        "it": "ragionamento non inviato: questo modello vuole un budget in "
+              "token, non un livello.",
+        "en": "reasoning not sent: this model takes a token budget, not a level.",
+    },
+    "drop.think.google_takes_a_level": {
+        "it": "ragionamento non inviato: questo modello vuole un livello, non "
+              "un budget in token.",
+        "en": "reasoning not sent: this model takes a level, not a token budget.",
+    },
+    "drop.think.openai_takes_a_level": {
+        "it": "ragionamento non inviato: qui è un livello, non un budget in "
+              "token.",
+        "en": "reasoning not sent: here it is a level, not a token budget.",
+    },
+    "drop.think.ollama_takes_boolean_or_level": {
+        "it": "ragionamento non inviato: Ollama accetta acceso/spento o un "
+              "livello, non un budget in token.",
+        "en": "reasoning not sent: Ollama accepts on/off or a level, not a "
+              "token budget.",
+    },
+    "drop.think.level_not_offered": {
+        "it": "ragionamento non inviato: questo livello non è fra quelli che "
+              "il fornitore accetta.",
+        "en": "reasoning not sent: this level is not one the provider accepts.",
+    },
+    "drop.think.model_does_not_deliberate": {
+        "it": "ragionamento non inviato: questo modello non ha una modalità di "
+              "ragionamento.",
+        "en": "reasoning not sent: this model has no reasoning mode.",
+    },
+    "drop.think.budget_below_minimum": {
+        "it": "ragionamento non inviato: il budget è sotto il minimo accettato "
+              "(1024 token).",
+        "en": "reasoning not sent: the budget is below the accepted minimum "
+              "(1024 tokens).",
+    },
+    "drop.think.budget_not_below_max_tokens": {
+        "it": "ragionamento non inviato: il budget deve stare sotto il tetto di "
+              "generazione, altrimenti non resta spazio per la risposta.",
+        "en": "reasoning not sent: the budget must stay below the generation "
+              "ceiling, or there is no room left for an answer.",
+    },
+    "drop.think.no_off_switch": {
+        "it": "ragionamento non disattivato: questo modello non documenta un "
+              "modo per spegnerlo.",
+        "en": "reasoning not disabled: this model documents no way to turn it "
+              "off.",
+    },
+
+    # ── the capability check ──────────────────────────────────────────────
+    # A warning, never a failure: a trainer may knowingly rehearse on a model
+    # that ignores the knob. What it may not do is stay silent, because the
+    # demo it describes runs, reads correctly and teaches nothing.
+    "preflight.capability.not_carried": {
+        "it": "{demo}: nessuna fonte collegata invia «{parameter}», che è il "
+              "parametro su cui si regge {beat}. Il beat gira lo stesso e non "
+              "dimostra niente.",
+        "en": "{demo}: no bound source sends “{parameter}”, which is the "
+              "parameter {beat} rests on. The beat still runs and demonstrates "
+              "nothing.",
+    },
+    "preflight.capability.alternatives": {
+        "it": "Lo invierebbero: {sources}.",
+        "en": "These would send it: {sources}.",
+    },
+    "preflight.capability.no_alternative": {
+        "it": "Nessuna fonte configurata su questa macchina lo invia.",
+        "en": "No source configured on this machine sends it.",
+    },
+
+    # ── session profiles ──────────────────────────────────────────────────
+    # Returned as the body of a 422 from the console, so each one names the
+    # field: a trainer has to be able to fix the file from the message.
+    "sessions.not_an_object": {
+        "it": "Il profilo {name} non è un oggetto JSON.",
+        "en": "Profile {name} is not a JSON object.",
+    },
+    "sessions.bad_version": {
+        "it": "Il profilo {name} dichiara version {found}; atteso {expected}.",
+        "en": "Profile {name} declares version {found}; expected {expected}.",
+    },
+    "sessions.bad_name": {
+        "it": "Nome di profilo non valido: {name}. Lettere, cifre, punto, "
+              "trattino e trattino basso, massimo 64 caratteri.",
+        "en": "Invalid profile name: {name}. Letters, digits, dot, hyphen and "
+              "underscore, at most 64 characters.",
+    },
+    "sessions.missing": {
+        "it": "Nessun profilo di sessione {name} in {path}.",
+        "en": "No session profile {name} at {path}.",
+    },
+    "sessions.unparseable": {
+        "it": "Il profilo {name} non è JSON leggibile: {detail}",
+        "en": "Profile {name} is not readable JSON: {detail}",
+    },
+    "sessions.credential_shaped": {
+        "it": "Il campo {field} ha la forma di una credenziale. I profili sono "
+              "versionati e letti ad alta voce: le chiavi restano in .env.",
+        "en": "Field {field} is credential-shaped. Profiles are committed and "
+              "read aloud; keys stay in .env.",
+    },
+    "sessions.roles_not_an_object": {
+        "it": "{where} non è un oggetto.",
+        "en": "{where} is not an object.",
+    },
+    "sessions.role_not_an_object": {
+        "it": "{where} non è un oggetto {{provider, model, params}}.",
+        "en": "{where} is not a {{provider, model, params}} object.",
+    },
+    "sessions.unknown_role": {
+        "it": "{where} nomina ruoli sconosciuti: {roles}. Ruoli validi: {known}.",
+        "en": "{where} names unknown roles: {roles}. Valid roles: {known}.",
+    },
+    "sessions.unknown_provider": {
+        "it": "{where} nomina un fornitore sconosciuto: {provider}.",
+        "en": "{where} names an unknown provider: {provider}.",
+    },
+    "sessions.model_not_a_string": {
+        "it": "{where}.model deve essere una stringa.",
+        "en": "{where}.model must be a string.",
+    },
+    "sessions.bad_params": {
+        "it": "{where}.params non è valido: {detail}",
+        "en": "{where}.params is not valid: {detail}",
+    },
+    "sessions.unknown_demo": {
+        "it": "Il profilo {name} nomina moduli inesistenti: {demos}. "
+              "Moduli validi: {known}.",
+        "en": "Profile {name} names demos that do not exist: {demos}. "
+              "Valid demos: {known}.",
+    },
+
+    # ── configuration ─────────────────────────────────────────────────────
+    "config.env.line_break": {
+        "it": "Rifiuto di scrivere {key}: il valore contiene un a capo o un byte "
+              "nullo, che definirebbe un'altra variabile in .env.",
+        "en": "Refusing to write {key}: the value contains a line break or null "
+              "byte, which would define another variable in .env.",
+    },
+}

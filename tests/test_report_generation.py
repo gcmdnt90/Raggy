@@ -1,10 +1,8 @@
 """Tests for the Raggy RAG chatbot."""
 
-import pytest
 from unittest.mock import MagicMock
 
 from app.rag.pipeline import RAGPipeline
-from app.rag.memory import ConversationMemory
 
 
 class TestRAGChat:

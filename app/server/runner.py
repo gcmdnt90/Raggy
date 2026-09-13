@@ -23,10 +23,12 @@ import threading
 from collections.abc import Iterator
 from datetime import datetime, timezone
 
+from app.i18n import t
 from app.llm.base import LLMError, LLMMessage
 from app.llm.router import LLMRouter
 from app.server.demos import data_root
 from app.server.runs import Pane, RunPlan
+from app.utils.redact import redact, secret_values
 
 logger = logging.getLogger("raggy.runner")
 
@@ -53,8 +55,17 @@ def sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
-def _pane_payload(pane: Pane) -> dict:
-    """A pane as the harness receives it. Mechanism visible, nothing else."""
+def _pane_payload(pane: Pane, prepared=None, lang: str | None = None) -> dict:
+    """A pane as the harness receives it. Mechanism visible, nothing else.
+
+    `sent` and `dropped` come from the request that was actually built, not
+    from a capability table, and they ride the `plan` event because the harness
+    lays out its panes before any text arrives and has to be able to label them
+    truthfully at that moment.
+
+    A `dropped` reason is prose on a projected surface, so it is translated
+    here, in the language the run was planned in (AGENTS.md rule 9).
+    """
     payload = {
         "pane": pane.pane,
         "label": pane.label,
@@ -62,6 +73,8 @@ def _pane_payload(pane: Pane) -> dict:
         "temperature": pane.temperature,
         "thinking": pane.thinking,
         "unavailable": pane.unavailable,
+        "sent": {},
+        "dropped": {},
     }
     if pane.source is not None:
         payload |= {
@@ -71,6 +84,18 @@ def _pane_payload(pane: Pane) -> dict:
             "local": pane.source.local,
             "temperature_applies": pane.source.temperature_applies,
         }
+    if prepared is not None:
+        # `sent` is redacted before it leaves the process. It is built from a
+        # payload that was constructed beside a credential, and this dict is
+        # rendered on the projected surface (PROJECT.md invariant 1).
+        payload["sent"] = {k: redact(v) if isinstance(v, str) else v
+                           for k, v in prepared.sent.items()}
+        payload["dropped"] = {
+            name: t(reason, lang) for name, reason in prepared.dropped.items()
+        }
+        # Derived from the same source of truth rather than asked of a second
+        # one, so the two can never disagree on a screen.
+        payload["temperature_applies"] = "temperature" not in prepared.dropped
     return payload
 
 
@@ -89,6 +114,30 @@ def _messages_for(plan: RunPlan, pane: Pane) -> list[LLMMessage]:
     return [*history, LLMMessage(role="user", content=plan.prompt)]
 
 
+def _prepare_pane(plan: RunPlan, pane: Pane, max_tokens: int, credentials: dict[str, dict]):
+    """The request this pane will send, built before the run starts.
+
+    Returns None when the request cannot even be built — a missing key, an SDK
+    that will not import. That is not smoothed over: the pane still runs, fails
+    for the same reason, and is narrated as a failure. What is lost is only the
+    parameter strip, and a pane showing no parameter makes no claim about one.
+    """
+    if pane.source is None:
+        return None
+    try:
+        router = LLMRouter(
+            pane.source.provider,
+            model=pane.source.model,
+            temperature=pane.temperature,
+            max_tokens=max_tokens,
+            **credentials.get(pane.source.provider, {}),
+        )
+        return router.prepare(_messages_for(plan, pane), pane.params, model=pane.source.model)
+    except Exception:  # noqa: BLE001 - reported by the run itself, moments later
+        logger.debug("Could not prepare pane %s in advance", pane.pane, exc_info=True)
+        return None
+
+
 def _run_pane(
     plan: RunPlan,
     pane: Pane,
@@ -104,31 +153,55 @@ def _run_pane(
     """
     messages = _messages_for(plan, pane)
     chunks: list[str] = []
+
+    # A provider's own error text is not trusted to be credential-free. Google
+    # sends the key as a URL query parameter and OpenAI echoes the key it
+    # rejected, so `str(exc)` can carry one, and the event built below is
+    # rendered on the projected surface. PROJECT.md invariant 1.
+    kwargs = credentials.get(pane.source.provider, {})
+    secrets = secret_values(kwargs)
+
     try:
         router = LLMRouter(
             pane.source.provider,
             model=pane.source.model,
             temperature=pane.temperature,
-            **credentials.get(pane.source.provider, {}),
-        )
-        for chunk in router.generate_stream(
-            messages,
-            model=pane.source.model,
-            temperature=pane.temperature,
             max_tokens=max_tokens,
-        ):
+            **kwargs,
+        )
+        # Built once, here, and sent. The same object was prepared before the
+        # stream opened so the harness could label the pane; preparing again
+        # rather than passing that one across a thread boundary keeps this
+        # function's only input the pane, and `prepare` is pure.
+        request = router.prepare(messages, pane.params, model=pane.source.model)
+        for chunk in router.generate_stream(messages, request=request):
             chunks.append(chunk)
             events.put(("delta", {"pane": pane.pane, "text": chunk}))
     except LLMError as exc:
         # A provider failure is narrated, never smoothed over: the room is
-        # entitled to see that this pane did not answer, and why.
+        # entitled to see that this pane did not answer, and why. Redacted, so
+        # that "why" never turns out to include the key.
         events.put(
-            ("pane_failed", {"pane": pane.pane, "error": f"{type(exc).__name__}: {exc}"})
+            (
+                "pane_failed",
+                {
+                    "pane": pane.pane,
+                    "error": redact(f"{type(exc).__name__}: {exc}", *secrets),
+                },
+            )
         )
         return
     except Exception as exc:  # noqa: BLE001 - one pane must not kill the run
         logger.exception("Pane %s crashed", pane.pane)
-        events.put(("pane_failed", {"pane": pane.pane, "error": f"{type(exc).__name__}: {exc}"}))
+        events.put(
+            (
+                "pane_failed",
+                {
+                    "pane": pane.pane,
+                    "error": redact(f"{type(exc).__name__}: {exc}", *secrets),
+                },
+            )
+        )
         return
 
     text = "".join(chunks)
@@ -170,10 +243,16 @@ def write_chain_file(plan: RunPlan, outputs: dict[int, str]) -> str | None:
         raise ValueError(f"produces path escapes the sector directory: {plan.produces!r}")
 
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    # In the language the beat ran in: the next demo reads this file in front of
+    # the room, and a Italian lesson must not hand it an English header.
     lines = [
-        f"<!-- Written by Banco from {plan.beat_id} on {stamp}. -->",
-        f"<!-- Sector: {plan.sector}. Overwritten on a successful run; "
-        "see PROJECT.md invariant 3. -->",
+        # Machine-readable, and first. The header below says the language in
+        # prose; this says it to `runs.chain_file_language`, which is what lets
+        # a later beat notice that the material it is about to paste into an
+        # Italian prompt was written in English by an earlier run.
+        f"<!-- banco:lang={plan.language} -->",
+        "<!-- " + t("chain.written_by", plan.language, beat_id=plan.beat_id, stamp=stamp) + " -->",
+        "<!-- " + t("chain.overwritten", plan.language, sector=plan.sector) + " -->",
         "",
     ]
     for pane in plan.panes:
@@ -183,7 +262,8 @@ def write_chain_file(plan: RunPlan, outputs: dict[int, str]) -> str | None:
         lines += [
             f"## {pane.label}",
             "",
-            f"`{pane.source.provider} · {pane.source.model} · temperature {pane.temperature}`",
+            "`" + t("chain.produced_by", plan.language, provider=pane.source.provider,
+                    model=pane.source.model, temperature=pane.temperature) + "`",
             "",
             text.strip(),
             "",
@@ -206,6 +286,11 @@ def stream_beat(
     `run_done` always last, so the harness can lay out its panes before any
     text arrives and knows when to stop listening.
     """
+    prepared = {
+        p.pane: _prepare_pane(plan, p, max_tokens, credentials or {})
+        for p in plan.panes
+    }
+
     yield sse(
         "plan",
         {
@@ -213,12 +298,16 @@ def stream_beat(
             "beat_id": plan.beat_id,
             "sector": plan.sector,
             "teaches": plan.teaches,
+            "teaches_params": list(plan.teaches_params),
+            "language_mismatches": list(plan.language_mismatches),
             "prompt": plan.prompt,
             "continues": plan.continues,
             "produces": plan.produces,
             "degraded": plan.degraded,
             "replayed": False,
-            "panes": [_pane_payload(p) for p in plan.panes],
+            "panes": [
+                _pane_payload(p, prepared.get(p.pane), plan.language) for p in plan.panes
+            ],
         },
     )
 
@@ -282,7 +371,7 @@ def stream_beat(
         try:
             produced = write_chain_file(plan, outputs)
         except OSError as exc:
-            yield sse("chain_failed", {"error": str(exc), "file": plan.produces})
+            yield sse("chain_failed", {"error": redact(exc), "file": plan.produces})
 
     yield sse(
         "run_done",

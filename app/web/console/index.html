@@ -2,108 +2,171 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Banco — stage console</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0d0e'/%3E%3Crect x='1.5' y='1.5' width='29' height='29' rx='6' fill='none' stroke='%23f0b429' stroke-width='2'/%3E%3Ctext x='16' y='23' font-family='ui-monospace,monospace' font-size='18' font-weight='700' fill='%23f0b429' text-anchor='middle'%3EB%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/shared/base.css">
 <link rel="stylesheet" href="/static/console/console.css">
 
 <!-- THE STAGE CONSOLE. Never projected.
      This is the only surface allowed to touch credentials. Keys are write-only:
      nothing here ever renders a stored key, masked or otherwise. See AGENTS.md
-     rule 2 and PROJECT.md invariant 1. -->
+     rule 2 and PROJECT.md invariant 1.
+
+     The static text below is written in Italian, which is the default language:
+     the page must read correctly before i18n.js has run. `data-i18n` keys swap
+     it for the other language. AGENTS.md rule 9 requires the switch on BOTH
+     surfaces — the console's own is what sends `?lang=` to the server, so the
+     pre-flight lines come back in the language the trainer is reading. -->
 
 <header id="bar">
-  <span class="brand">Banco</span>
-  <span class="where">stage console — not for the projector</span>
+  <span class="brand"><span class="brand-mark" aria-hidden="true">B</span>Banco</span>
+  <span class="where" data-i18n="console.where">stage console — non per il proiettore</span>
   <span id="profile" class="chip"></span>
-  <a id="to-harness" class="chip link" href="/harness" target="_blank" rel="noopener" hidden>
-    open the harness →
+
+  <label class="field lang">
+    <span data-i18n="common.language">lingua</span>
+    <select id="lang" data-lang-select
+            data-i18n-aria-label="common.language_aria" aria-label="Lingua dell'interfaccia">
+      <option value="it">Italiano</option>
+      <option value="en">English</option>
+    </select>
+  </label>
+
+  <a id="to-harness" class="chip link" href="/harness" target="_blank" rel="noopener"
+     data-i18n="console.open_harness" hidden>
+    apri l'harness →
   </a>
 </header>
 
-<p id="unprotected" class="alert" hidden>
-  This console has no password. Anything running on this machine can reach it.
-  Set one under <strong>Access</strong> below.
+<p id="unprotected" class="alert" data-i18n="console.unprotected" hidden>
+  Questa console non ha una password. Qualunque cosa giri su questa macchina
+  può raggiungerla. Impostane una nella sezione Accesso, qui sotto.
 </p>
 
-<main>
-  <section class="card" id="keys-card">
-    <h2>Model sources</h2>
-    <p class="lead">
-      At least one is required; two make every pane of D1 live. Keys are stored
-      in <code>.env</code> and never displayed again — leave a field blank to
-      keep what is already there.
-    </p>
+<div class="console-shell">
+  <aside class="console-nav" data-i18n-aria-label="console.nav_aria" aria-label="Sezioni della console">
+    <p class="nav-label">Banco</p>
+    <p class="nav-title" data-i18n="console.nav_title">Stage console</p>
+    <nav>
+      <a href="#checks-card"><span>01</span><b class="nav-name" data-i18n="console.nav_overview">Panoramica</b></a>
+      <a href="#keys-card"><span>02</span><b class="nav-name" data-i18n="console.nav_sources">Fonti modello</b></a>
+      <a href="#material-card"><span>03</span><b class="nav-name" data-i18n="console.nav_material">Materiale demo</b></a>
+      <a href="#ollama-card"><span>04</span><b class="nav-name" data-i18n="console.nav_local">Modello locale</b></a>
+    </nav>
+  </aside>
 
-    <form id="keys">
-      <div class="row" data-provider="anthropic">
-        <label for="anthropic">Anthropic</label>
-        <span class="state" id="state-anthropic"></span>
-        <input id="anthropic" name="anthropic_api_key" type="password"
-               autocomplete="off" spellcheck="false" placeholder="sk-ant-…">
-      </div>
-      <div class="row" data-provider="openai">
-        <label for="openai">OpenAI</label>
-        <span class="state" id="state-openai"></span>
-        <input id="openai" name="openai_api_key" type="password"
-               autocomplete="off" spellcheck="false" placeholder="sk-…">
-      </div>
-      <div class="row" data-provider="google">
-        <label for="google">Google</label>
-        <span class="state" id="state-google"></span>
-        <input id="google" name="google_api_key" type="password"
-               autocomplete="off" spellcheck="false" placeholder="AIza…">
-      </div>
-
-      <h3>Access</h3>
-      <div class="row">
-        <label for="admin">Console password</label>
-        <span class="state" id="state-admin"></span>
-        <input id="admin" name="admin_password" type="password"
-               autocomplete="new-password" placeholder="choose one">
-      </div>
-
-      <button type="submit">Save</button>
-      <span id="saved" class="note"></span>
-    </form>
-  </section>
-
-  <section class="card" id="ollama-card">
-    <h2>Local model — Ollama</h2>
-    <p class="lead" id="ollama-summary">checking…</p>
-
-    <div class="row">
-      <label for="ollama-url">Address</label>
-      <span class="state" id="state-ollama"></span>
-      <input id="ollama-url" name="ollama_base_url" placeholder="http://localhost:11434">
+  <main>
+    <div class="console-heading">
+      <h1 data-i18n="console.heading">Pre-flight</h1>
     </div>
 
-    <h3>Installed</h3>
-    <ul id="ollama-models" class="list"><li class="note">—</li></ul>
+    <section class="card" id="checks-card">
+      <h2 data-i18n="console.readiness">Prontezza</h2>
+      <p class="lead" data-i18n="console.readiness_lead">
+        Letta da questa macchina. Il controllo live chiama una volta ogni fonte
+        configurata: è l'unica riga capace di distinguere una chiave che funziona
+        da una soltanto salvata, e riporta il motivo quando una fallisce.
+      </p>
+      <button id="run-check" type="button" data-i18n="console.run_check">Esegui il controllo completo</button>
+      <span id="check-note" class="note"></span>
+      <ul id="checks" class="list"></ul>
+      <ul id="live" class="list"></ul>
+      <button id="reset-transcripts" type="button" class="secondary"
+              data-i18n="console.forget_transcripts">
+        Dimentica le trascrizioni di prova
+      </button>
+      <p class="note" data-i18n="console.transcripts_note">
+        Un beat che continua un beat precedente interroga quello che il suo
+        pannello aveva detto. Dopo una prova a vuoto quelle risposte sono ancora
+        in memoria.
+      </p>
+    </section>
 
-    <h3>Recommended for this machine</h3>
-    <ul id="ollama-recommended" class="list"><li class="note">—</li></ul>
+    <section class="card" id="keys-card">
+      <h2 data-i18n="console.sources_title">Fonti modello</h2>
+      <p class="lead" data-i18n="console.sources_lead">
+        Ne serve almeno una; due rendono live ogni pannello di D1. Le chiavi
+        vengono salvate in .env e non sono più mostrate — lascia un campo vuoto
+        per conservare quella che c'è già.
+      </p>
 
-    <pre id="pull-log" class="log" hidden></pre>
-  </section>
+      <form id="keys">
+        <div class="row" data-provider="anthropic">
+          <label for="anthropic">Anthropic</label>
+          <span class="state" id="state-anthropic"></span>
+          <input id="anthropic" name="anthropic_api_key" type="password"
+                 autocomplete="off" spellcheck="false" placeholder="sk-ant-…">
+        </div>
+        <div class="row" data-provider="openai">
+          <label for="openai">OpenAI</label>
+          <span class="state" id="state-openai"></span>
+          <input id="openai" name="openai_api_key" type="password"
+                 autocomplete="off" spellcheck="false" placeholder="sk-…">
+        </div>
+        <div class="row" data-provider="google">
+          <label for="google">Google</label>
+          <span class="state" id="state-google"></span>
+          <input id="google" name="google_api_key" type="password"
+                 autocomplete="off" spellcheck="false" placeholder="AIza…">
+        </div>
 
-  <section class="card" id="checks-card">
-    <h2>Before the lesson</h2>
-    <p class="lead">
-      Everything below is read from this machine. The live check calls each
-      configured source once — it is the only line that can tell a working key
-      from a stored one.
-    </p>
-    <button id="run-check" type="button">Run the full check</button>
-    <span id="check-note" class="note"></span>
-    <ul id="checks" class="list"></ul>
-    <ul id="live" class="list"></ul>
-    <button id="reset-transcripts" type="button" class="secondary">
-      Forget rehearsal transcripts
-    </button>
-    <p class="note">
-      A beat that continues an earlier one interrogates what its pane said before.
-      After a dry run those answers are still in memory.
-    </p>
-  </section>
-</main>
+        <h3 data-i18n="console.access">Accesso</h3>
+        <div class="row">
+          <label for="admin" data-i18n="console.console_password">Password della console</label>
+          <span class="state" id="state-admin"></span>
+          <input id="admin" name="admin_password" type="password"
+                 autocomplete="new-password"
+                 data-i18n-placeholder="console.password_placeholder" placeholder="scegline una">
+        </div>
 
+        <button type="submit" data-i18n="console.save">Salva</button>
+        <span id="saved" class="note"></span>
+      </form>
+    </section>
+
+    <section class="card" id="material-card">
+      <h2 data-i18n="console.material_title">Materiale demo</h2>
+      <p class="lead" data-i18n="console.material_lead">
+        Ogni dimostrazione legge file dal pacchetto del settore. Un settore è
+        completo oppure non può girare — il controllo copre tutte e cinque le
+        demo, non solo quelle che Banco sa già eseguire.
+      </p>
+
+      <div class="row">
+        <label for="sector" data-i18n="console.sector">Settore</label>
+        <span class="state" id="state-sector"></span>
+        <select id="sector"></select>
+      </div>
+
+      <ul id="material" class="list"></ul>
+      <p id="material-action" class="note" hidden></p>
+      <p id="deck" class="note mono"></p>
+    </section>
+
+    <section class="card" id="ollama-card">
+      <h2 data-i18n="console.ollama_title">Modello locale — Ollama</h2>
+      <!-- No `data-i18n` here on purpose: this line is written by the probe, and
+           a key would let a later `i18n.apply()` overwrite the answer with
+           "checking…" every time the language changed. -->
+      <p class="lead" id="ollama-summary">controllo in corso…</p>
+
+      <div class="row">
+        <label for="ollama-url" data-i18n="console.address">Indirizzo</label>
+        <span class="state" id="state-ollama"></span>
+        <input id="ollama-url" name="ollama_base_url" placeholder="http://localhost:11434">
+      </div>
+
+      <h3 data-i18n="console.installed_heading">Installati</h3>
+      <ul id="ollama-models" class="list"></ul>
+
+      <h3 data-i18n="console.recommended_heading">Consigliati per questa macchina</h3>
+      <ul id="ollama-recommended" class="list"></ul>
+
+      <pre id="pull-log" class="log" hidden></pre>
+    </section>
+  </main>
+</div>
+
+<script src="/static/shared/strings.it.js"></script>
+<script src="/static/shared/strings.en.js"></script>
+<script src="/static/shared/i18n.js"></script>
 <script src="/static/console/console.js"></script>

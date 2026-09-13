@@ -6,8 +6,8 @@
     python generate.py --settore fotovoltaico
     python generate.py --settore automazione --out /some/where --seed 7
     python generate.py --settore numismatica \
-        --nome "Casa d'Aste Artemide" \
-        --out ../../engagements/smi/pilot-artemide/demo-data
+        --nome "<ragione sociale del cliente>" \
+        --out ../../engagements/smi/<cartella-ingaggio>/demo-data
 
 The kit is organised by SECTOR, never by client: config/<settore>.json holds a
 neutral synthetic company, and a real engagement supplies its own name and
@@ -47,6 +47,12 @@ servono a rendere evidente quando un modello risponde davvero a partire dai
 vostri documenti e quando sta improvvisando. Sono inventati anche i campi di
 giudizio usati nel modulo 2 — dove il criterio non è misurabile dal documento,
 il valore è sintetico e va trattato come tale.
+
+**Non compare nessuna persona e nessuna azienda reale.** Gli operatori che
+firmano le schede sono **codici**, non nomi e nemmeno iniziali; i committenti
+compaiono solo come codice cliente. Se il pacchetto è stato generato per un ingaggio
+reale, l'unico dato del cliente che appare è la ragione sociale passata con
+`--nome`, in intestazione ai documenti della casa.
 
 | Cartella | Contenuto | Usata in |
 |---|---|---|

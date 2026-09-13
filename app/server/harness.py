@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.config import get_settings
-from app.server import runner, sources
+from app.server import preflight, runner, sources
 from app.server.demos import list_demos, resolve_demo, sectors
 from app.server.runs import plan as build_plan
 from app.server.runs import run_block, unblocked_reason
@@ -46,8 +46,22 @@ def index() -> FileResponse:
 
 @router.get("/api/sectors")
 def api_sectors() -> list[dict]:
-    """Sector ids and labels. Never the client block: that carries a real name."""
-    return sectors()
+    """Sector ids and labels, each marked with whether its material is on disk.
+
+    Never the client block: that carries a real name. Readiness is not a
+    credential and belongs here - a trainer picking a sector whose pack was
+    never generated should see that before pressing Run, not as a missing-file
+    error in front of a room.
+    """
+    ready = {s["id"]: s for s in preflight.sectors_overview()}
+    out = []
+    for sector in sectors():
+        state = ready.get(sector["id"], {})
+        out.append(sector | {
+            "ready": state.get("ready", False),
+            "missing_demos": state.get("missing_demos", []),
+        })
+    return out
 
 
 @router.get("/api/status")

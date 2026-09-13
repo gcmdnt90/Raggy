@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "name": "esempio",
+  "updated": "2026-09-12",
+  "note": "Example profile, not active. The API models are left on the provider default because a hand-written id ages: the console fills them from a live list. The demos.m2 block is the one place this file says something the positional rule could not.",
+  "note_it": "Profilo di esempio, non attivo. I modelli API sono lasciati al default del provider perche' un id scritto a mano invecchia: la console li riempie da una lista viva. Il blocco demos.m2 e' l'unico punto in cui questo file dice qualcosa che il vincolo posizionale non sapeva dire.",
+  "defaults": {
+    "primary": {
+      "provider": "anthropic",
+      "params": {
+        "max_tokens": 16000
+      }
+    },
+    "secondary": {
+      "provider": "openai",
+      "params": {
+        "max_tokens": 8000
+      }
+    },
+    "local": {
+      "provider": "ollama",
+      "model": "qwen3:8b",
+      "params": {
+        "max_tokens": 4000
+      }
+    }
+  },
+  "demos": {
+    "m2": {
+      "secondary": {
+        "provider": "ollama",
+        "model": "qwen3:1.7b",
+        "params": {
+          "max_tokens": 4000
+        }
+      }
+    }
+  },
+  "_m2_note": "D2 chiede due giudici di capacita' diversa, non due fornitori. Qui viene rilegato SOLO 'secondary', al modello locale piu' piccolo: 'primary' resta sul default API, che e' Anthropic. Due ragioni. La prima e' che la differenza di capacita' e' quella che il beat 1 deve mostrare, e fra un modello di frontiera e un 1.7b e' visibile senza commento. La seconda e' il beat 2: il budget di ragionamento e' un numero di token, e fra le quattro fonti solo Anthropic e Google lo prendono come numero - Ollama e OpenAI vogliono un livello e il parametro verrebbe scartato, con il pannello che lo dichiara e il beat che non dimostra piu' niente. Il controllo di capacita' in pre-flight segnala esattamente questo caso."
+}

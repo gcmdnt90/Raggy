@@ -21,10 +21,12 @@ Python module plus a JSON config and nothing else. The interface:
 """
 from __future__ import annotations
 
-from . import automazione, fotovoltaico, numismatica
+from . import (associazione, automazione, defi, fotovoltaico, maglieria,
+               numismatica)
 
 REGISTRY = {
-    m.SECTOR["id"]: m for m in (numismatica, fotovoltaico, automazione)
+    m.SECTOR["id"]: m for m in (numismatica, fotovoltaico, automazione,
+                                 defi, associazione, maglieria)
 }
 
 

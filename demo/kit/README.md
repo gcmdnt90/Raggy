@@ -5,13 +5,16 @@ by client**: `config/<settore>.json` describes a neutral synthetic company, and
 a real engagement supplies its own name and output directory on the command
 line. Client names live in `engagements/`, not here.
 
-Three sectors, matching the deck's sector selector:
+Six sectors, matching the deck's sector selector:
 
 | `--settore` | Sector | Record | Invented scale |
 |---|---|---|---|
 | `numismatica` | numismatic auction house | lot sheet | **SM-1 … SM-5** condition |
 | `fotovoltaico` | PV monitoring & optimisation | monthly performance sheet | **RG-1 … RG-5** yield class |
 | `automazione` | industrial automation software | test protocol sheet | **CE-1 … CE-5** outcome class |
+| `defi` | blockchain software house / DeFi protocol | release sheet | **RD-1 … RD-5** release risk |
+| `associazione` | trade association, member advice desk | member query sheet | **UA-1 … UA-5** response class |
+| `maglieria` | production-software house for knitwear | specification sheet | **SP-1 … SP-5** specification class |
 
 > **Document shape is researched, values are not.** `RICERCA-DATI.md` records
 > what each trade's working document really contains — fields, order, code
@@ -56,8 +59,8 @@ are client-specific:
 
 ```bash
 python generate.py --settore numismatica \
-  --nome "Casa d'Aste Artemide" \
-  --out ../../engagements/smi/pilot-artemide/demo-data
+  --nome "<ragione sociale del cliente>" \
+  --out ../../engagements/smi/<cartella-ingaggio>/demo-data
 ```
 
 ## What it produces
@@ -67,7 +70,7 @@ Default output: `delivery/demo-data/<settore>/`
 | Folder | Contents | Used by |
 |---|---|---|
 | `regole/` | house rules + scale guide, `.md` **and** `.pdf` | **M3** — Project, Raggy, Ollama |
-| `lotti/` `schede/` `collaudi/` | 12 record sheets (PDF) | **M4** — the folder task |
+| `lotti/` `schede/` `collaudi/` `rilasci/` `quesiti/` `specifiche/` | 12 record sheets (PDF) | **M4** — the folder task |
 | `avvelenata/` | the same sheets + one poisoned one | **M5** — prompt injection |
 | `demo/` | paste-ready snippets | **M1, M2, M4** |
 | `_perito/` | `ground-truth.csv` | **M4** — verification, trainer only |
@@ -135,6 +138,21 @@ highlights.
    `operators`, `output`.
 4. Keep the internal scale **invented and distinctive**. A real, guessable
    scale destroys the demo — the ungrounded rung would answer correctly.
+5. Add a `CHAIN` block in `generate_chain.py` — the trade nouns, the four
+   plausible-but-wrong values a model invents for each hole, the industry
+   answer rung 1 gives and why it is wrong, and the D5 human-verification list.
+   Add any new table column to the `labels` map and the `keys` tuple in `d4()`.
+6. Add a `sectors[]` entry **and about thirty `variants[]` texts in two
+   languages** to `theory-deck/demo-prompts.json`. This is the part that is
+   always underestimated: every prompt carries its own per-sector wording, and
+   a missing variant falls back silently to another sector's phrasing.
+
+**No real people, and no people at all.** Operators are **codes** (`REV-02`,
+`COL-01`) — not names, not initials. A plausible local surname on a projected
+sheet is indistinguishable from a real one, and in a small country it will
+sometimes be the surname of somebody in the room; initials are only marginally
+better. A code is what an anonymised internal export actually carries, so the
+document shape survives and the sheet names nobody.
 
 If you do not know enough about the client's business to fill the config
 honestly, **ask them** — do not invent operational detail. The same rule as
@@ -160,6 +178,9 @@ generators/
     numismatica_docs.py           catalogue rules, grading guide, lot sheets
     fotovoltaico.py               records, documents, snippets
     automazione.py                records, documents, snippets
+    defi.py                       records, documents, snippets
+    associazione.py               records, documents, snippets
+    maglieria.py                  records, documents, snippets
 ```
 
 PDFs are deliberately plain — no tables, no columns, no images — so text

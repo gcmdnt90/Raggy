@@ -16,8 +16,8 @@ import hashlib
 import logging
 import secrets
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +35,11 @@ FALLBACK_MODELS: dict[str, list[str]] = {
         "gpt-4o-mini",
         "o4-mini",
     ],
+    # The 2.5 line answers 404 "no longer available to new users" as of
+    # 2026-09-11; 3.6-flash is the replacement the API itself named.
     "google": [
+        "gemini-3.6-flash",
         "gemini-3.5-flash",
-        "gemini-2.5-pro",
-        "gemini-2.5-flash",
-        "gemini-2.5-flash-lite",
     ],
 }
 
@@ -78,15 +78,6 @@ def _is_fresh(entry: _CacheEntry) -> bool:
 def fallback(provider: str) -> list[str]:
     """Return a copy of the static fallback list for ``provider``."""
     return list(FALLBACK_MODELS.get(provider, []))
-
-
-def clear_cache(provider: str | None = None) -> None:
-    """Drop cached live results (all providers, or just one)."""
-    if provider is None:
-        _cache.clear()
-    else:
-        for key in [key for key in _cache if key[0] == provider]:
-            _cache.pop(key, None)
 
 
 def is_live(provider: str, *, cache_key: str | None = None) -> bool:

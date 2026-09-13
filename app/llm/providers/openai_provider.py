@@ -2,18 +2,62 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
-from typing import Iterator
+import re
+from collections.abc import Iterator
+from functools import lru_cache
 
 from app.llm.base import (
-    LLMMessage, LLMProvider, LLMResponse,
-    LLMAuthenticationError, LLMConnectionError,
-    LLMModelNotFoundError, LLMRateLimitError,
-    LLMTimeoutError, retry_with_backoff,
+    LLMAuthenticationError,
+    LLMConnectionError,
+    LLMMessage,
+    LLMModelNotFoundError,
+    LLMProvider,
+    LLMRateLimitError,
+    LLMResponse,
+    LLMTimeoutError,
+    ProviderRequest,
+    retry_with_backoff,
+    split_system,
 )
 from app.llm.providers import model_catalog
 
 logger = logging.getLogger(__name__)
+
+#: Model families that deliberate, and therefore take `reasoning_effort` rather
+#: than a temperature. The pattern is advisory in exactly the way
+#: docs/specs/model-control.md §4.3 describes a capability table: when it is
+#: wrong the parameter is refused by the API and the pane says so, which is
+#: recoverable. It is not consulted by anything that makes a claim on screen.
+_REASONING_MODEL = re.compile(r"^(o\d|gpt-5|gpt-6)")
+
+#: `reasoning_effort` accepts levels, not budgets. Taken from the vendor
+#: documentation cited in docs/specs/model-control.md §4.2 and deliberately not
+#: widened here: a level Banco invents is a level the API rejects.
+_EFFORT_LEVELS = ("none", "minimal", "low", "medium", "high", "xhigh", "max")
+
+
+def _is_reasoning_model(model: str) -> bool:
+    return bool(_REASONING_MODEL.match(model))
+
+
+@lru_cache(maxsize=1)
+def _completions_parameters() -> frozenset[str]:
+    """What the installed SDK's `chat.completions.create` will actually accept.
+
+    Inspected rather than assumed, for the reason the Anthropic adapter
+    documents at length: this signature changes between releases of a library
+    this project pins, and the cost of finding out at call time is a dead pane
+    in front of a room. An inspection that fails returns the conservative set
+    that every version of this endpoint has had.
+    """
+    try:
+        from openai.resources.chat.completions import Completions
+
+        return frozenset(inspect.signature(Completions.create).parameters)
+    except Exception:  # noqa: BLE001 - fall back to what has always existed
+        return frozenset({"model", "messages", "max_tokens", "temperature", "stream"})
 
 # Keep only chat/completion-capable models out of the full /models listing
 # (which also includes embeddings, audio, image, moderation, etc.).
@@ -40,6 +84,84 @@ class OpenAIProvider(LLMProvider):
             raise ImportError("Package 'openai' not installed. Run: pip install openai") from exc
         self._client = OpenAI(api_key=self.api_key, timeout=self.timeout)
 
+    def prepare(self, messages: list[LLMMessage], params: dict | None = None, *,
+                model: str | None = None) -> ProviderRequest:
+        """Build a Chat Completions request.
+
+        This resolves the open decision left in docs/specs/model-control.md
+        §4.2. The spec offered two ways to make a reasoning model selectable
+        from the console: add a Responses-API path, or keep reasoning models
+        off the list until there is one. Neither is needed — the pinned SDK's
+        `chat.completions.create` already takes `reasoning_effort` and
+        `max_completion_tokens`, so a reasoning model is selectable on the
+        endpoint Banco already uses. The signature is inspected rather than
+        trusted, so an SDK that removes either one degrades to a reported drop
+        instead of a TypeError.
+
+        A reasoning model does not take a sampling temperature. That is a drop
+        with a reason, not a silently ignored value: D1 is the temperature demo
+        and a pane that claims a temperature it never sent would break it.
+        """
+        values = self.resolve_params(params)
+        target_model = model or self.model
+        accepted = _completions_parameters()
+        reasoning = _is_reasoning_model(target_model)
+
+        system_text, chat = split_system(messages, values.get("system"))
+        conversation = ([{"role": "system", "content": system_text}] if system_text else [])
+        conversation += [{"role": m.role, "content": m.content} for m in chat]
+
+        payload: dict = {"model": target_model, "messages": conversation}
+        sent: dict = {}
+        dropped: dict[str, str] = {}
+        if system_text:
+            sent["system"] = system_text
+
+        # ── generation ceiling ─────────────────────────────────────────────
+        max_tokens = int(values["max_tokens"])
+        ceiling_field = "max_completion_tokens" if (
+            reasoning and "max_completion_tokens" in accepted
+        ) else "max_tokens"
+        if ceiling_field in accepted:
+            payload[ceiling_field] = max_tokens
+            sent["max_tokens"] = max_tokens
+        else:
+            dropped["max_tokens"] = "drop.max_tokens.sdk_lacks_parameter"
+
+        # ── temperature ────────────────────────────────────────────────────
+        temperature = values.get("temperature")
+        if temperature is not None:
+            if reasoning:
+                dropped["temperature"] = "drop.temperature.reasoning_model"
+            elif "temperature" not in accepted:
+                dropped["temperature"] = "drop.temperature.sdk_lacks_parameter"
+            else:
+                payload["temperature"] = float(temperature)
+                sent["temperature"] = float(temperature)
+
+        # ── deliberation ───────────────────────────────────────────────────
+        think = values.get("think")
+        if think is not None:
+            if not reasoning:
+                dropped["think"] = "drop.think.model_does_not_deliberate"
+            elif "reasoning_effort" not in accepted:
+                dropped["think"] = "drop.think.sdk_lacks_parameter"
+            elif think is False:
+                # OpenAI expresses "do not deliberate" as an effort level, which
+                # is a real value and therefore really sent.
+                payload["reasoning_effort"] = "none"
+                sent["think"] = False
+            elif isinstance(think, str) and think in _EFFORT_LEVELS:
+                payload["reasoning_effort"] = think
+                sent["think"] = think
+            elif isinstance(think, str):
+                dropped["think"] = "drop.think.level_not_offered"
+            else:
+                # An integer budget. Not rounded to a level — see §3.
+                dropped["think"] = "drop.think.openai_takes_a_level"
+
+        return ProviderRequest(model=target_model, payload=payload, sent=sent, dropped=dropped)
+
     def _fetch_models(self) -> list[str]:
         """Query the OpenAI API and keep only chat-capable models."""
         out: list[str] = []
@@ -59,16 +181,22 @@ class OpenAIProvider(LLMProvider):
 
     @retry_with_backoff(max_attempts=3)
     def generate(self, messages: list[LLMMessage], *, model: str | None = None,
-                 temperature: float | None = None, max_tokens: int | None = None) -> LLMResponse:
-        from openai import AuthenticationError, RateLimitError, APITimeoutError, APIConnectionError, NotFoundError
-        target_model = model or self.model
-        oai_msgs = [{"role": m.role, "content": m.content} for m in messages]
+                 temperature: float | None = None, max_tokens: int | None = None,
+                 params: dict | None = None,
+                 request: ProviderRequest | None = None) -> LLMResponse:
+        from openai import (
+            APIConnectionError,
+            APITimeoutError,
+            AuthenticationError,
+            NotFoundError,
+            RateLimitError,
+        )
+        request = request or self.prepare(
+            messages, self.resolve_params(params, temperature, max_tokens), model=model
+        )
+        target_model = request.model
         try:
-            response = self._client.chat.completions.create(
-                model=target_model, messages=oai_msgs,
-                max_tokens=max_tokens or self.max_tokens,
-                temperature=temperature if temperature is not None else self.temperature,
-            )
+            response = self._client.chat.completions.create(**request.payload)
         except AuthenticationError as exc:
             raise LLMAuthenticationError(str(exc)) from exc
         except RateLimitError as exc:
@@ -87,17 +215,22 @@ class OpenAIProvider(LLMProvider):
 
     @retry_with_backoff(max_attempts=3)
     def generate_stream(self, messages: list[LLMMessage], *, model: str | None = None,
-                        temperature: float | None = None, max_tokens: int | None = None) -> Iterator[str]:
-        from openai import AuthenticationError, RateLimitError, APITimeoutError, APIConnectionError, NotFoundError
-        target_model = model or self.model
-        oai_msgs = [{"role": m.role, "content": m.content} for m in messages]
+                        temperature: float | None = None, max_tokens: int | None = None,
+                        params: dict | None = None,
+                        request: ProviderRequest | None = None) -> Iterator[str]:
+        from openai import (
+            APIConnectionError,
+            APITimeoutError,
+            AuthenticationError,
+            NotFoundError,
+            RateLimitError,
+        )
+        request = request or self.prepare(
+            messages, self.resolve_params(params, temperature, max_tokens), model=model
+        )
+        target_model = request.model
         try:
-            stream = self._client.chat.completions.create(
-                model=target_model, messages=oai_msgs,
-                max_tokens=max_tokens or self.max_tokens,
-                temperature=temperature if temperature is not None else self.temperature,
-                stream=True,
-            )
+            stream = self._client.chat.completions.create(**request.payload, stream=True)
             for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta.content:
                     yield chunk.choices[0].delta.content

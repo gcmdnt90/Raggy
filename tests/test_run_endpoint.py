@@ -14,7 +14,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.llm.base import LLMError, LLMProvider, LLMResponse
+from app.llm.base import LLMError, LLMMessage, LLMProvider, LLMResponse, ProviderRequest
 from app.llm.router import _PROVIDER_PATHS
 from app.server import harness, runner, sources
 
@@ -29,15 +29,42 @@ class StubProvider(LLMProvider):
     def available_models(self):
         return [self.default_model]
 
-    def generate(self, messages, *, model=None, temperature=None, max_tokens=None):
+    def prepare(self, messages, params=None, *, model=None):
+        """A real adapter's shape: everything asked for is carried, nothing dropped.
+
+        The stub reports `sent` rather than inventing it, so a test that asks
+        what reached the request is asking the same question of the stub that
+        the harness asks of a provider.
+        """
+        values = self.resolve_params(params)
+        target_model = model or self.model
+        return ProviderRequest(
+            model=target_model,
+            payload={"model": target_model,
+                     "messages": [{"role": m.role, "content": m.content} for m in messages]},
+            sent=dict(values),
+            dropped={},
+        )
+
+    def generate(self, messages, *, model=None, temperature=None, max_tokens=None,
+                 params=None, request=None):
         return LLMResponse(content="stub", model=model or self.default_model,
                            provider=self.provider_name)
 
-    def generate_stream(self, messages, *, model=None, temperature=None, max_tokens=None):
+    def generate_stream(self, messages, *, model=None, temperature=None, max_tokens=None,
+                        params=None, request=None):
         if type(self).fail:
             raise LLMError("stub refused on purpose")
+        request = request or self.prepare(
+            messages, self.resolve_params(params, temperature, max_tokens), model=model
+        )
         # Echo the temperature so a test can prove each pane was sent its own.
-        yield from ("draft ", f"t={temperature} ", f"turns={len(messages)}")
+        # Read from the prepared request, which is where it now lives.
+        yield from (
+            "draft ",
+            f"t={request.sent.get('temperature')} ",
+            f"turns={len(request.payload['messages'])}",
+        )
 
     def test_connection(self):
         return True
@@ -155,7 +182,9 @@ def test_successful_run_overwrites_the_chain_file(client, tmp_path, monkeypatch)
     assert done["produced"] == "demo/catena/d1-bozze.md"
     written = chain.read_text(encoding="utf-8")
     assert "SHIPPED FALLBACK" not in written
-    assert "temperature 1.0" in written, "the header must say what produced each draft"
+    assert "temperatur" in written and "1.0" in written, (
+        "the header must say what produced each draft"
+    )
 
 
 def test_failed_run_leaves_the_chain_file_intact(client, tmp_path, monkeypatch):
@@ -234,7 +263,7 @@ def test_unavailable_panes_emit_no_text(client, monkeypatch):
 def test_library_beat_is_refused_with_the_reason(client):
     res = run(client, "m1-p3")
     assert res.status_code == 409
-    assert "temperature" in res.json()["detail"].lower()
+    assert "temperatur" in res.json()["detail"].lower()
 
 
 def test_unknown_beat_is_a_404(client):
@@ -297,7 +326,52 @@ def test_ollama_is_constructed_with_the_configured_base_url(monkeypatch):
 
 
 def test_a_model_that_ignores_temperature_is_reported_as_such():
-    """Objective 2 is only served if what is displayed is true."""
-    assert sources.temperature_applies("anthropic", "claude-sonnet-4-6") is True
+    """Objective 2 is only served if what is displayed is true.
+
+    The rule has two halves and they fail independently, so they are asserted
+    independently. The previous version of this test asserted that
+    `temperature_applies("anthropic", "claude-sonnet-4-6")` is True — which is a
+    statement about the *model* written as though it were a statement about the
+    call. On a clean checkout at `requirements.lock` it is false, because
+    `anthropic==1.2.0` has no `temperature` on `Messages.create`, and the test
+    failed on every clean checkout while the parent module's own docstring
+    explained why.
+    """
+    from app.llm.providers import anthropic as anthropic_provider
+
+    # The model half, independent of whatever SDK happens to be installed.
+    assert anthropic_provider._supports_temperature("claude-sonnet-4-6") is True
+    assert anthropic_provider._supports_temperature("claude-opus-4-8") is False
+
+    # The answer that reaches a screen is the conjunction, and it must go false
+    # as soon as either half does.
+    sdk_carries_it = anthropic_provider._sdk_accepts_temperature()
+    assert sources.temperature_applies("anthropic", "claude-sonnet-4-6") is sdk_carries_it
     assert sources.temperature_applies("anthropic", "claude-opus-4-8") is False
     assert sources.temperature_applies("ollama", "anything") is True
+
+
+def test_an_anthropic_pane_says_so_when_the_sdk_will_not_carry_temperature():
+    """D1 is the temperature demo, so this cannot be allowed to be silent.
+
+    With the pinned SDK no Anthropic pane sends a temperature at all. The room
+    must be told that, and `prepare` is where it becomes sayable: the parameter
+    appears in `dropped` with a reason rather than in `sent` with a value.
+    """
+    from app.llm.base import ProviderRequest as _Req
+    from app.llm.providers.anthropic import AnthropicProvider, _sdk_accepts_temperature
+
+    provider = object.__new__(AnthropicProvider)
+    provider.model = "claude-sonnet-4-6"
+    provider.temperature = 1.0
+    provider.max_tokens = 1500
+
+    prepared = provider.prepare([LLMMessage(role="user", content="ping")])
+    assert isinstance(prepared, _Req)
+    if _sdk_accepts_temperature():
+        assert prepared.sent["temperature"] == 1.0
+        assert "temperature" not in prepared.dropped
+    else:
+        assert "temperature" not in prepared.sent
+        assert prepared.dropped["temperature"] == "drop.temperature.sdk_lacks_parameter"
+        assert "temperature" not in prepared.payload
