@@ -18,6 +18,21 @@ const state = {
   beatId: null,
   running: false,
   egress: new Map(), // target -> local?  kept for the whole session, not per run
+  // What each beat produced, kept for the whole session and keyed by beat id.
+  // A lesson is not a straight line: the trainer goes back to D1 to point at a
+  // field, then forward to D3, and before this the panes were wiped on the way
+  // out. Re-running to get them back costs money, costs time in front of a
+  // room, and — since nothing is deterministic — comes back a different answer,
+  // so the thing being pointed at is gone. Nothing here is replayed or
+  // re-generated: it is the same DOM the run built, put back (invariant 2).
+  results: new Map(), // beat id -> { panes: innerHTML, mode: {...}, banner: {...} }
+  showAllBeats: false,
+  // Prompts the trainer edited in the viewer, by beat id. For this session
+  // only, and never written back to the demo database (ADR 0001).
+  promptEdits: new Map(),
+  // Role -> { provider, model, think } chosen at the gear. Roles, not panes.
+  overrides: {},
+  catalogue: null,
 };
 
 // The demo database is bilingual by field suffix: `label` is English, `label_it`
@@ -127,9 +142,18 @@ async function selectDemo(id, { keepPanes = false } = {}) {
 
   const list = $("#beats");
   list.innerHTML = "";
-  for (const beat of state.demo.prompts || []) {
+  // Only the beats Banco can actually run, unless the trainer asks for the
+  // rest. The database declares thirty-two and eight have run blocks; a
+  // projected list where three quarters of the rows cannot be pressed is a
+  // list the room reads as broken. Nothing is deleted and nothing is hidden
+  // from the console — AGENTS.md rule 7 keeps every archived beat on purpose,
+  // and the toggle below is how you reach them.
+  const all = state.demo.prompts || [];
+  const shown = state.showAllBeats ? all : all.filter((p) => p.run.runnable);
+  for (const beat of shown) {
     const li = el("li", beat.run.runnable ? "runnable" : "blocked-beat");
     li.dataset.id = beat.id;
+    if (state.results.has(beat.id)) li.classList.add("has-result");
     li.innerHTML =
       `<span class="beat-id">${escapeHtml(beat.id)}</span>` +
       `<span class="beat-label">${escapeHtml(pick(beat, "label"))}</span>` +
@@ -140,9 +164,23 @@ async function selectDemo(id, { keepPanes = false } = {}) {
     list.append(li);
   }
 
+  const hiddenCount = all.length - shown.length;
+  if (hiddenCount || state.showAllBeats) {
+    const toggle = el("li", "beats-toggle");
+    toggle.innerHTML = `<button type="button">${escapeHtml(
+      state.showAllBeats
+        ? t("harness.beats_show_runnable")
+        : t("harness.beats_show_all", { count: hiddenCount }))}</button>`;
+    toggle.addEventListener("click", () => {
+      state.showAllBeats = !state.showAllBeats;
+      selectDemo(state.demoId, { keepPanes: true });
+    });
+    list.append(toggle);
+  }
+
   const wanted = state.beatId && beatById(state.beatId)
     ? state.beatId
-    : (state.demo.prompts || []).find((p) => p.run.runnable)?.id;
+    : shown.find((p) => p.run.runnable)?.id || all.find((p) => p.run.runnable)?.id;
 
   if (wanted) selectBeat(wanted, { keepPanes });
   else { $("#detail").hidden = true; if (!keepPanes) $("#panes").innerHTML = ""; }
@@ -155,6 +193,9 @@ function beatById(id) {
 function selectBeat(id, { keepPanes = false } = {}) {
   const beat = beatById(id);
   if (!beat) return;
+  // Snapshot what is on screen before leaving it, so a beat mid-stream is kept
+  // as far as it got rather than only beats that finished.
+  if (state.beatId && state.beatId !== id) rememberResult(state.beatId);
   state.beatId = id;
   document.querySelectorAll("#beats li").forEach((li) =>
     li.setAttribute("aria-current", String(li.dataset.id === id)));
@@ -181,8 +222,62 @@ function selectBeat(id, { keepPanes = false } = {}) {
     : t("harness.run");
 
   if (keepPanes) return;
-  $("#panes").innerHTML = "";
-  $("#banner").hidden = true;
+  restoreResult(id);
+}
+
+// ── what a beat produced, kept for the session ─────────────────────────────
+//
+// The stored value is the DOM the run itself built, nothing more. It is never
+// re-requested and never re-generated: putting back a *different* answer under
+// the same beat would be Banco showing output that no model produced for this
+// pane, which invariant 2 forbids as firmly as inventing one.
+
+function rememberResult(beatId) {
+  const host = $("#panes");
+  if (!host.innerHTML.trim()) return;
+  const mode = $("#mode");
+  const banner = $("#banner");
+  state.results.set(beatId, {
+    panes: host.innerHTML,
+    count: host.dataset.count || "",
+    mode: mode.hidden ? null : { text: mode.textContent, kind: mode.dataset.mode },
+    banner: banner.hidden ? null : { text: banner.textContent, kind: banner.dataset.kind },
+  });
+}
+
+function restoreResult(beatId) {
+  const host = $("#panes");
+  const mode = $("#mode");
+  const banner = $("#banner");
+  const saved = state.results.get(beatId);
+
+  host.innerHTML = saved ? saved.panes : "";
+  host.dataset.count = saved ? saved.count : "";
+
+  mode.hidden = !(saved && saved.mode);
+  if (saved && saved.mode) {
+    mode.textContent = saved.mode.text;
+    mode.dataset.mode = saved.mode.kind;
+  }
+
+  banner.hidden = !(saved && saved.banner);
+  if (saved && saved.banner) {
+    banner.textContent = saved.banner.text;
+    banner.dataset.kind = saved.banner.kind;
+  }
+
+  $("#reset-run").hidden = !saved;
+}
+
+// Explicit, and only ever for the beat in front of you. A control that cleared
+// every beat at once is one mis-click away from throwing out a demonstration
+// the room has not finished discussing.
+function resetCurrentResult() {
+  if (!state.beatId || state.running) return;
+  state.results.delete(state.beatId);
+  restoreResult(state.beatId);
+  document.querySelectorAll("#beats li").forEach((li) =>
+    li.classList.toggle("has-result", state.results.has(li.dataset.id)));
 }
 
 // The panel's label is a claim about the text under it, so it follows the text.
@@ -190,7 +285,13 @@ function selectBeat(id, { keepPanes = false } = {}) {
 // every marked node from the catalogue, and a label set only here would be
 // replaced by whichever key the markup still carried.
 function setPromptSummary(complete) {
-  const key = complete ? "harness.prompt_summary" : "harness.prompt_summary_template";
+  // An edited prompt gets its own label. "Come inviato" would still be true of
+  // the text, but it reads as "this is what the deck says", and a prompt the
+  // room cannot trace to the slides has to announce itself — that was the whole
+  // condition on making it editable at all.
+  const key = state.promptEdits.has(state.beatId)
+    ? "harness.prompt_summary_edited"
+    : complete ? "harness.prompt_summary" : "harness.prompt_summary_template";
   const summary = $("#prompt-summary");
   if (!summary) return;
   summary.dataset.i18n = key;
@@ -210,6 +311,7 @@ addEventListener(i18n.EVENT, () => {
 // ── running ────────────────────────────────────────────────────────────────
 
 $("#run").addEventListener("click", run);
+$("#reset-run").addEventListener("click", resetCurrentResult);
 
 async function run() {
   if (state.running || !state.beatId) return;
@@ -229,6 +331,8 @@ async function run() {
         // database. This is what decides which one is sent to the model — and
         // therefore which one the room reads in the "prompt as sent" panel.
         language: i18n.lang,
+        overrides: overridesForRequest(),
+        prompt_override: state.promptEdits.get(state.beatId) ?? null,
       }),
     });
 
@@ -307,12 +411,16 @@ function onPlan(plan) {
   for (const pane of plan.panes) {
     const card = el("article", "pane");
     card.dataset.pane = pane.pane;
+    card.dataset.role = pane.role || "";
     card.innerHTML =
       `<header>` +
         `<span class="pane-label">${escapeHtml(pane.label)}</span>` +
+        `<button type="button" class="pane-zoom" data-zoom-pane ` +
+          `title="${escapeHtml(t("harness.zoom_pane"))}">&#10530;</button>` +
         `<span class="pane-state" data-state="waiting">${escapeHtml(t("harness.pane_waiting"))}</span>` +
       `</header>` +
       `<div class="meta mono">${paneMeta(pane)}</div>` +
+      documentChips(pane) +
       contextNode(pane) +
       `<div class="out"></div>`;
     host.append(card);
@@ -329,6 +437,19 @@ function onPlan(plan) {
 // characters" next to a pane that says "no documents" is the whole rung in one
 // line. Rung 3 gets the passages themselves, each with its file and score,
 // because checking them against the answer is what the beat asks the room to do.
+// The documents behind this pane, as things you can open. The room is asked to
+// check the answer against them; a citation it cannot open is a citation it has
+// to take on trust, which is the habit this lesson exists to break.
+function documentChips(pane) {
+  const docs = pane.documents || [];
+  if (!docs.length) return "";
+  return `<p class="documents">` + docs.map((d) =>
+    `<button type="button" class="doc-chip" data-document="${escapeHtml(d)}">` +
+    `<span class="doc-icon" aria-hidden="true">&#128196;</span>` +
+    `<span class="mono">${escapeHtml(d.split("/").pop())}</span></button>`).join("") +
+    `</p>`;
+}
+
 function contextNode(pane) {
   if (!pane.context || pane.context === "none") return "";
 
@@ -344,7 +465,8 @@ function contextNode(pane) {
 
   const items = passages.map((p) =>
     `<li>` +
-      `<span class="passage-source mono">${escapeHtml(p.source)}</span>` +
+      `<button type="button" class="passage-source mono" data-document="${escapeHtml(p.source)}">` +
+        `${escapeHtml(p.source)}</button>` +
       `<span class="passage-score mono">${escapeHtml(t("harness.passage_score", {
         score: Number(p.score).toFixed(2) }))}</span>` +
       `<p class="passage-text">${escapeHtml(p.text)}</p>` +
@@ -425,6 +547,14 @@ function onPaneUnavailable({ pane: i, reason, recording }) {
 function onRunDone(done) {
   if (done.produced) showBanner(t("harness.chain_written", { file: done.produced }), "ok");
   else if (done.chain_held) showBanner(t("harness.chain_held"), "warn");
+  // Kept the moment it finishes, not only when the trainer navigates away: a
+  // reload or a language switch mid-lesson must not be what loses it.
+  if (state.beatId) {
+    rememberResult(state.beatId);
+    $("#reset-run").hidden = false;
+    document.querySelector(`#beats li[data-id="${state.beatId}"]`)
+      ?.classList.add("has-result");
+  }
 }
 
 function noteEgress(target, local) {
@@ -459,3 +589,214 @@ function escapeHtml(s) {
 
 boot().catch((err) =>
   showBanner(t("harness.server_unreachable", { error: String(err) }), "error"));
+
+// ── the viewer ─────────────────────────────────────────────────────────────
+//
+// One overlay for every "let me look at that properly" on this surface: a pane
+// at full page, the prompt (editable, for the next run only), and any document
+// a pane put in front of the question. Same controls in all three cases,
+// because it is the same gesture and a room should not have to learn two ways
+// to make text bigger.
+//
+// The font size is the point of it. A trainer reads a passage aloud from the
+// back of a room; 14px does not survive that, and neither does a projector at
+// the wrong resolution. It is remembered for the session so the size chosen
+// once in the first demo still holds in the fifth.
+
+const VIEWER_STEPS = [0.9, 1, 1.2, 1.45, 1.75, 2.1, 2.5, 3];
+let viewerStep = 2;
+let viewerOnSave = null;
+
+function viewerScale() {
+  $("#viewer").style.setProperty("--viewer-scale", VIEWER_STEPS[viewerStep]);
+}
+
+function openViewer({ title, text, note = "", editable = false, onSave = null }) {
+  const box = $("#viewer");
+  $("#viewer-title").textContent = title;
+  $("#viewer-note").textContent = note;
+  $("#viewer-body").textContent = text;
+  const edit = $("#viewer-edit");
+  edit.value = text;
+  edit.hidden = !editable;
+  $("#viewer-body").hidden = editable;
+  viewerOnSave = editable ? onSave : null;
+  box.hidden = false;
+  viewerScale();
+  (editable ? edit : $("#viewer-body")).focus();
+}
+
+function closeViewer() {
+  // An edit is taken on the way out rather than behind a Save button: the
+  // trainer's next gesture is pressing Esegui, and a change that silently did
+  // not apply is worse than no editing at all.
+  if (viewerOnSave) viewerOnSave($("#viewer-edit").value);
+  viewerOnSave = null;
+  $("#viewer").hidden = true;
+}
+
+$("#viewer-close").addEventListener("click", closeViewer);
+$("#viewer-bigger").addEventListener("click", () => {
+  viewerStep = Math.min(viewerStep + 1, VIEWER_STEPS.length - 1);
+  viewerScale();
+});
+$("#viewer-smaller").addEventListener("click", () => {
+  viewerStep = Math.max(viewerStep - 1, 0);
+  viewerScale();
+});
+document.addEventListener("keydown", (e) => {
+  if ($("#viewer").hidden) return;
+  if (e.key === "Escape") closeViewer();
+  if (e.key === "+" || e.key === "=") $("#viewer-bigger").click();
+  if (e.key === "-") $("#viewer-smaller").click();
+});
+
+// ── the prompt, opened and edited ──────────────────────────────────────────
+//
+// An edit applies to the next run and is then discarded. It is never written
+// back to demo-prompts.json: that file is vendored from the deck at the commit
+// in DECK-PIN.txt (ADR 0001), so an edit that changed it would put Banco and
+// the slides on two different texts without saying so.
+
+$("#prompt-open").addEventListener("click", (e) => {
+  e.preventDefault();
+  const beat = beatById(state.beatId);
+  if (!beat) return;
+  openViewer({
+    title: t("harness.prompt_summary"),
+    text: $("#prompt").textContent,
+    note: state.promptEdits.has(state.beatId) ? t("harness.prompt_edited") : "",
+    editable: true,
+    onSave: (value) => {
+      const original = beat.run.prompt || "";
+      if (value.trim() && value !== original) state.promptEdits.set(state.beatId, value);
+      else state.promptEdits.delete(state.beatId);
+      $("#prompt").textContent = state.promptEdits.get(state.beatId) ?? original;
+      setPromptSummary(beat.run.prompt_complete);
+    },
+  });
+});
+
+// ── documents a pane put in front of the question ──────────────────────────
+
+async function openDocument(path) {
+  const url = withLang(`/api/document?sector=${encodeURIComponent(state.sector)}` +
+    `&path=${encodeURIComponent(path)}`);
+  openViewer({ title: path, text: t("harness.document_loading") });
+  try {
+    const doc = await json(url);
+    openViewer({ title: path, text: doc.text });
+  } catch (err) {
+    // Narrated in the viewer that was already opened, not swallowed: a
+    // document the room was invited to check and cannot open is a fact.
+    openViewer({ title: path, text: t("harness.document_failed", { error: String(err) }) });
+  }
+}
+
+// Delegated, because panes are rebuilt on every run and restored from a
+// snapshot when the trainer comes back to a beat.
+$("#panes").addEventListener("click", (e) => {
+  const doc = e.target.closest("[data-document]");
+  if (doc) { openDocument(doc.dataset.document); return; }
+  const zoom = e.target.closest("[data-zoom-pane]");
+  if (zoom) {
+    const card = zoom.closest(".pane");
+    openViewer({
+      title: card.querySelector(".pane-label")?.textContent || "",
+      text: card.querySelector(".out")?.textContent || "",
+      note: card.querySelector(".meta")?.textContent || "",
+    });
+  }
+});
+
+// ── the gear: provider, model and reasoning per role ───────────────────────
+//
+// Roles, never panes. `run-blocks.json` asks for `primary` / `secondary` /
+// `local` and never names a provider (ADR 0003); the gear rebinds the role, so
+// a beat keeps degrading to replay when a source disappears instead of
+// breaking. It also means one choice covers every pane that asked for that
+// role, which is what a trainer means by "run this demo on the small model".
+
+$("#gear").addEventListener("click", async () => {
+  const panel = $("#gear-panel");
+  const open = panel.hidden;
+  $("#gear").setAttribute("aria-expanded", String(open));
+  panel.hidden = !open;
+  if (!open) return;
+  if (!state.catalogue) {
+    panel.innerHTML = `<p class="gear-loading">${escapeHtml(t("harness.gear_loading"))}</p>`;
+    try {
+      state.catalogue = (await json("/api/sources/catalogue")).sources || [];
+    } catch {
+      state.catalogue = [];
+    }
+  }
+  renderGear();
+});
+
+function rolesOfCurrentBeat() {
+  const block = beatById(state.beatId);
+  if (!block) return [];
+  // Roles are not in the beat payload, so they come from the panes the last
+  // run laid out, falling back to the two that every beat can use.
+  const seen = [...document.querySelectorAll("#panes .pane")]
+    .map((p) => p.dataset.role).filter(Boolean);
+  return [...new Set(seen.length ? seen : ["primary", "secondary", "local"])];
+}
+
+function renderGear() {
+  const panel = $("#gear-panel");
+  if (!state.catalogue.length) {
+    panel.innerHTML = `<p class="gear-loading">${escapeHtml(t("harness.gear_none"))}</p>`;
+    return;
+  }
+  panel.innerHTML = rolesOfCurrentBeat().map((role) => {
+    const chosen = state.overrides[role] || {};
+    const providers = state.catalogue.map((s) =>
+      `<option value="${escapeHtml(s.provider)}"${s.provider === chosen.provider ? " selected" : ""}>` +
+      `${escapeHtml(s.provider)}</option>`).join("");
+    const source = state.catalogue.find((s) => s.provider === chosen.provider);
+    const models = (source ? source.models : []).map((m) =>
+      `<option value="${escapeHtml(m)}"${m === chosen.model ? " selected" : ""}>${escapeHtml(m)}</option>`
+    ).join("");
+    return `<div class="gear-role" data-role="${escapeHtml(role)}">` +
+      `<span class="gear-role-name mono">${escapeHtml(role)}</span>` +
+      `<select data-gear="provider"><option value="">${escapeHtml(t("harness.gear_default"))}</option>${providers}</select>` +
+      `<select data-gear="model"><option value="">${escapeHtml(t("harness.gear_default"))}</option>${models}</select>` +
+      `<select data-gear="think">` +
+        `<option value="">${escapeHtml(t("harness.gear_default"))}</option>` +
+        `<option value="false"${chosen.think === "false" ? " selected" : ""}>${escapeHtml(t("harness.gear_think_off"))}</option>` +
+        `<option value="low"${chosen.think === "low" ? " selected" : ""}>low</option>` +
+        `<option value="medium"${chosen.think === "medium" ? " selected" : ""}>medium</option>` +
+        `<option value="high"${chosen.think === "high" ? " selected" : ""}>high</option>` +
+      `</select></div>`;
+  }).join("") + `<p class="gear-note">${escapeHtml(t("harness.gear_note"))}</p>`;
+}
+
+$("#gear-panel").addEventListener("change", (e) => {
+  const field = e.target.dataset.gear;
+  if (!field) return;
+  const role = e.target.closest(".gear-role").dataset.role;
+  const current = state.overrides[role] || {};
+  const value = e.target.value;
+  if (!value) delete current[field]; else current[field] = value;
+  // Changing the provider invalidates whichever model was chosen under the old
+  // one: offering gpt-5 under Anthropic would be a control that cannot work.
+  if (field === "provider") delete current.model;
+  if (Object.keys(current).length) state.overrides[role] = current;
+  else delete state.overrides[role];
+  renderGear();
+});
+
+// `think: "false"` arrives from a <select>, which only carries strings. The
+// provider adapters distinguish a boolean from a level, so it is converted
+// here rather than left for each of the four to guess at.
+function overridesForRequest() {
+  const out = {};
+  for (const [role, choice] of Object.entries(state.overrides)) {
+    const copy = { ...choice };
+    if (copy.think === "false") copy.think = false;
+    out[role] = copy;
+  }
+  return out;
+}

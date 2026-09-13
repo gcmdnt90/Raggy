@@ -227,3 +227,158 @@ def test_d5a_degrades_rather_than_answering_from_an_api():
     plan = runs.plan("m5", "m5-p5", "numismatics", NO_LOCAL, language="it")
     assert not plan.panes[0].runnable
     assert plan.panes[0].source is None
+
+
+# ── a stream that produced nothing ──────────────────────────────────────────
+
+def test_a_pane_that_streams_nothing_is_narrated_not_shown_as_done(monkeypatch):
+    """m5-p5, 13 September: four passages retrieved and an empty answer.
+
+    qwen3 deliberates by default and Ollama returns that deliberation in
+    `message.thinking`, so the pane streamed no `content`, closed cleanly, and
+    rendered as a finished pane with an empty body. An empty box under the word
+    "finito" is the harness asserting a model answered when it did not.
+    """
+    import queue
+
+    from app.server import runner
+
+    class SilentRouter:
+        def __init__(self, *a, **k):
+            pass
+
+        def prepare(self, *a, **k):
+            return None
+
+        def generate_stream(self, *a, **k):
+            return iter(())
+
+    monkeypatch.setattr(runner, "LLMRouter", SilentRouter)
+    plan = runs.plan("m5", "m5-p2", "numismatics", CLASSROOM, language="it")
+    events: queue.Queue = queue.Queue()
+    runner._run_pane(plan, plan.panes[0], events, 1500, {})
+
+    name, payload = events.get_nowait()
+    assert name == "pane_failed"
+    assert "max_tokens" in payload["error"]
+    assert events.empty(), "a pane that failed must not also report itself done"
+
+
+def test_a_pane_that_streams_text_still_reports_done(monkeypatch):
+    """The guard above must not turn a working pane into a failure."""
+    import queue
+
+    from app.server import runner
+
+    class TalkingRouter:
+        def __init__(self, *a, **k):
+            pass
+
+        def prepare(self, *a, **k):
+            return None
+
+        def generate_stream(self, *a, **k):
+            return iter(["una ", "risposta"])
+
+    monkeypatch.setattr(runner, "LLMRouter", TalkingRouter)
+    plan = runs.plan("m5", "m5-p2", "numismatics", CLASSROOM, language="it")
+    events: queue.Queue = queue.Queue()
+    runner._run_pane(plan, plan.panes[0], events, 1500, {})
+
+    names = []
+    while not events.empty():
+        names.append(events.get_nowait()[0])
+    assert "pane_done" in names
+    assert "pane_failed" not in names
+
+
+def test_d5a_does_not_ask_a_reasoning_model_to_deliberate():
+    """think:false on the local pane. D2 is where deliberation is taught."""
+    block = runs.run_block("m5-p5")
+    assert block["panes"][0]["think"] is False
+
+
+# ── the viewer's document endpoint, and the gear ────────────────────────────
+
+@pytest.fixture
+def surface():
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.server import harness
+
+    app = FastAPI()
+    app.include_router(harness.router)
+    return TestClient(app)
+
+
+def test_a_document_opens_for_the_room_to_check(surface):
+    res = surface.get(
+        "/api/document?sector=numismatics&path=regole/regolamento-catalogazione.md")
+    assert res.status_code == 200
+    assert res.json()["text"].strip()
+
+
+def test_the_answer_key_never_opens_on_the_projected_surface(surface):
+    """Invariant 1. It ships on purpose and it belongs to the console."""
+    res = surface.get("/api/document?sector=numismatics&path=_perito/ground-truth.csv")
+    assert res.status_code == 403
+
+
+def test_a_trainer_readme_never_opens_either(surface):
+    res = surface.get(
+        "/api/document?sector=numismatics&path=demo/catena/LEGGIMI-CATENA.md")
+    assert res.status_code == 403
+
+
+def test_a_document_path_cannot_escape_its_sector(surface):
+    res = surface.get("/api/document?sector=numismatics&path=../fotovoltaico/regole")
+    assert res.status_code in (400, 404)
+
+
+def test_the_gear_catalogue_never_carries_a_credential(surface):
+    body = surface.get("/api/sources/catalogue").text.lower()
+    for forbidden in ("api_key", "sk-", "secret", "token"):
+        assert forbidden not in body
+
+
+def test_an_override_rebinds_the_role_not_the_pane():
+    from app.server import harness
+
+    bound = {"primary": API, "local": LOCAL}
+    out = harness._apply_overrides(bound, {"primary": {"provider": "openai",
+                                                       "model": "gpt-tiny"}})
+    assert out["primary"].provider == "openai"
+    assert out["primary"].model == "gpt-tiny"
+    assert out["local"] == LOCAL, "an untouched role must be left alone"
+
+
+def test_an_override_can_turn_reasoning_off():
+    from app.server import harness
+
+    out = harness._apply_overrides({"primary": API}, {"primary": {"think": False}})
+    assert out["primary"].params.get("think") is False
+
+
+def test_an_edited_prompt_is_what_gets_sent_and_what_rung_three_searches_for():
+    corpus.build_index("numismatics")
+    edited = "Quali regole di fotografia si applicano ai lotti?"
+    plan = runs.plan("m3", "m3-p1", "numismatics", CLASSROOM, language="it",
+                     prompt_override=edited)
+    assert plan.prompt == edited
+    assert plan.panes[2].passages, "the edit must still drive retrieval"
+
+
+def test_an_empty_edit_falls_back_to_the_composed_prompt():
+    plain = runs.plan("m5", "m5-p2", "numismatics", CLASSROOM, language="it")
+    blank = runs.plan("m5", "m5-p2", "numismatics", CLASSROOM, language="it",
+                      prompt_override="   ")
+    assert blank.prompt == plain.prompt
+
+
+def test_a_pane_names_the_documents_behind_its_context():
+    corpus.build_index("numismatics")
+    _, panes = _panes("m3-p1")
+    assert panes[0].documents == ()
+    assert panes[1].documents and all(d.startswith("regole/") for d in panes[1].documents)
+    assert panes[2].documents and all(d.startswith("regole/") for d in panes[2].documents)

@@ -160,7 +160,21 @@ class OllamaProvider(LLMProvider):
                 chunk = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            content = chunk.get("message", {}).get("content", "")
+            # Ollama puts a reasoning model's deliberation in `thinking`, never
+            # in `content`. Reading only `content` made a thinking model look
+            # like a dead one: qwen3 thinks by default, spent the whole
+            # `num_predict` budget deliberating, and the pane streamed nothing
+            # while reporting success. That is how m5-p5 showed four retrieved
+            # passages and no answer on 2026-09-13.
+            #
+            # The deliberation is still not yielded, and that is deliberate:
+            # objective 2 puts the reasoning *budget* on the projected surface,
+            # never the reasoning itself. A pane filling with a model's inner
+            # monologue buries the thing the room came to read. What changes is
+            # that a run which produced only deliberation is now narrated as
+            # such by the runner instead of rendering as an empty success.
+            message = chunk.get("message", {}) or {}
+            content = message.get("content", "")
             if content:
                 yield content
             if chunk.get("done", False):

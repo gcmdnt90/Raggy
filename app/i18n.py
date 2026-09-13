@@ -294,6 +294,15 @@ CATALOG: dict[str, dict[str, str]] = {
         "it": "pannello {index}",
         "en": "pane {index}",
     },
+    "runner.empty_answer": {
+        "it": "Il modello ha chiuso senza scrivere niente. Di solito è un "
+              "modello di ragionamento che ha speso tutto il budget a "
+              "deliberare: togli il ragionamento su questo pannello, oppure "
+              "alzagli max_tokens.",
+        "en": "The model closed without writing anything. Usually a reasoning "
+              "model that spent its whole budget deliberating: turn thinking "
+              "off on this pane, or raise its max_tokens.",
+    },
     # ── D3's ladder: the sector's documents, and how a pane gets them ─────
     "corpus.escapes_sector": {
         "it": "Cartella dei documenti fuori dal settore: {path}",
@@ -318,6 +327,14 @@ CATALOG: dict[str, dict[str, str]] = {
     "corpus.all_heading": {
         "it": "DOCUMENTI DELLA CASA, PER INTERO:",
         "en": "THE HOUSE DOCUMENTS, IN FULL:",
+    },
+    "corpus.trainer_document": {
+        "it": "«{path}» è materiale del formatore e non si apre qui.",
+        "en": "'{path}' is trainer material and does not open here.",
+    },
+    "corpus.no_such_document": {
+        "it": "Documento inesistente: {path}",
+        "en": "No such document: {path}",
     },
     "corpus.no_documents": {
         "it": "Il settore «{sector}» non ha documenti da mettere in contesto.",

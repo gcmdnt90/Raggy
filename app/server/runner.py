@@ -82,6 +82,10 @@ def _pane_payload(pane: Pane, prepared=None, lang: str | None = None) -> dict:
         "context": pane.context,
         "context_chars": len(pane.context_text),
         "passages": list(pane.passages),
+        # Openable, not only nameable: the room is asked to check the answer
+        # against these, and a path it cannot open is a citation it has to take
+        # on trust - which is the habit this whole lesson exists to break.
+        "documents": list(pane.documents),
     }
     if pane.source is not None:
         payload |= {
@@ -222,6 +226,22 @@ def _run_pane(
         return
 
     text = "".join(chunks)
+
+    # A stream that closed cleanly and produced nothing is not a success, and
+    # rendering it as one is the harness showing a blank pane under the word
+    # "finito". It happened on 2026-09-13: a reasoning model spent its whole
+    # `num_predict` budget deliberating and emitted no answer, and the room
+    # would have watched an empty box with no reason given. Narrated instead —
+    # the same rule as a provider error, for the same reason (AGENTS.md rule 1).
+    if not text.strip():
+        events.put(
+            (
+                "pane_failed",
+                {"pane": pane.pane, "error": t("runner.empty_answer", plan.language)},
+            )
+        )
+        return
+
     _TRANSCRIPTS[transcript_key(plan.sector, plan.beat_id, pane.pane)] = [
         *messages,
         LLMMessage(role="assistant", content=text),

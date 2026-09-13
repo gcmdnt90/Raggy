@@ -261,3 +261,154 @@ main {
   white-space: pre-wrap;
   opacity: .95;
 }
+
+/* A beat that has already produced something, in the sequence list. Not a
+   status — just a mark, so the trainer can see at a glance what is still
+   standing behind them before pressing Esegui again. */
+#beats li.has-result .beat-id::after {
+  content: "•";
+  margin-left: .4ch;
+  opacity: .7;
+}
+#beats li.beats-toggle {
+  grid-template-columns: 1fr;
+  padding: .2rem 0;
+}
+#beats li.beats-toggle button {
+  background: none;
+  border: 0;
+  padding: .25rem 0;
+  font: inherit;
+  font-size: .85em;
+  opacity: .65;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+#beats li.beats-toggle button:hover { opacity: 1; }
+#reset-run.secondary {
+  background: none;
+  border: 1px solid var(--rule, #3a3a3a);
+  opacity: .75;
+}
+#reset-run.secondary:hover { opacity: 1; }
+
+/* ── the viewer ────────────────────────────────────────────────────────────
+   One overlay, three uses: a pane at full page, the prompt, a document. The
+   font scale is the reason it exists — a trainer reads a retrieved passage
+   aloud from the back of a room, and 14px does not survive that. */
+#viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg, #0b0d0e);
+  --viewer-scale: 1.2;
+}
+/* `display: flex` above beats the browser's own `[hidden] { display: none }`,
+   so without this the closed overlay stays laid out over the whole page and
+   silently eats every click on the harness. Found in a browser, not by
+   reading: a stylesheet cannot fail a test, and this one would have made the
+   projected surface unusable in the room. */
+#viewer[hidden] { display: none; }
+#viewer > header {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .7rem 1rem;
+  border-bottom: 1px solid var(--rule, #3a3a3a);
+  flex: 0 0 auto;
+}
+#viewer-title { font-weight: 600; }
+#viewer .viewer-note { opacity: .65; font-size: .85em; }
+#viewer .viewer-controls { margin-left: auto; display: flex; gap: .4rem; }
+#viewer .viewer-controls button {
+  background: none;
+  border: 1px solid var(--rule, #3a3a3a);
+  color: inherit;
+  font: inherit;
+  padding: .25rem .7rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+#viewer .viewer-controls button:hover { border-color: currentColor; }
+#viewer-body, #viewer-edit {
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 1.2rem 1.6rem 2rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: calc(1rem * var(--viewer-scale));
+  line-height: 1.5;
+  background: none;
+  border: 0;
+  color: inherit;
+  font-family: inherit;
+  resize: none;
+}
+#viewer-edit { font-family: ui-monospace, monospace; }
+#viewer-edit:focus, #viewer-body:focus { outline: none; }
+
+/* Controls that open the viewer. Small and quiet until wanted: they sit on a
+   projected surface, and a row of buttons competes with the thing being shown. */
+.pane header .pane-zoom,
+.doc-chip,
+button.passage-source {
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+.pane header .pane-zoom { opacity: .45; margin-left: .4rem; }
+.pane header .pane-zoom:hover { opacity: 1; }
+.pane .documents { margin: 0 0 .5rem; display: flex; flex-wrap: wrap; gap: .5rem; }
+.doc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  font-size: .8em;
+  border: 1px solid var(--rule, #3a3a3a);
+  border-radius: 999px;
+  padding: .15rem .6rem;
+  opacity: .85;
+}
+.doc-chip:hover { opacity: 1; border-color: currentColor; }
+button.passage-source { text-decoration: underline dotted; text-underline-offset: 3px; }
+button.passage-source:hover { text-decoration-style: solid; }
+#prompt-open.secondary {
+  margin-top: .5rem;
+  background: none;
+  border: 1px solid var(--rule, #3a3a3a);
+  opacity: .75;
+}
+#prompt-open.secondary:hover { opacity: 1; }
+
+/* ── the gear ──────────────────────────────────────────────────────────── */
+#gear.icon {
+  background: none;
+  border: 1px solid var(--rule, #3a3a3a);
+  color: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  padding: .35rem .55rem;
+  cursor: pointer;
+  opacity: .7;
+}
+#gear.icon:hover, #gear.icon[aria-expanded="true"] { opacity: 1; }
+#gear-panel {
+  border: 1px solid var(--rule, #3a3a3a);
+  border-radius: 6px;
+  padding: .7rem .8rem;
+  margin: .6rem 0;
+  display: grid;
+  gap: .5rem;
+  font-size: .88em;
+}
+.gear-role { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.gear-role-name { min-width: 5.5rem; opacity: .75; }
+.gear-role select { font: inherit; padding: .2rem .35rem; }
+.gear-note, .gear-loading { margin: 0; opacity: .6; font-size: .85em; }

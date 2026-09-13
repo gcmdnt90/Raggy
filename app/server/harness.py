@@ -41,6 +41,16 @@ class RunRequest(BaseModel):
     beat_id: str = Field(min_length=1, max_length=64)
     sector: str = Field(min_length=1, max_length=64)
     language: str = Field(default=DEFAULT_LANGUAGE, pattern="^(en|it)$")
+    #: Per-role provider/model/reasoning chosen from the gear beside Esegui, for
+    #: this run only. A *role* is overridden, never a pane: run blocks name
+    #: roles and never providers (ADR 0003), and that indirection is what lets a
+    #: source that disappears degrade the beat instead of breaking it.
+    overrides: dict[str, dict] = Field(default_factory=dict)
+    #: The prompt as the trainer edited it in the viewer, for this run only.
+    #: Never written back to the demo database: that file is vendored from the
+    #: deck at a pinned commit (ADR 0001), and an edit here that silently
+    #: changed it would put Banco and the slides on two different texts.
+    prompt_override: str | None = Field(default=None, max_length=200_000)
 
 
 @router.get("/harness")
@@ -124,6 +134,117 @@ def _prompt_preview(
         return template, False
 
 
+def _apply_overrides(
+    bound: dict[str, sources.ModelSource], overrides: dict[str, dict]
+) -> dict[str, sources.ModelSource]:
+    """Rebind roles to the provider and model chosen at the gear.
+
+    A role is rebound, never a pane, so `run-blocks.json` still names only roles
+    and a beat still degrades when a source disappears (ADR 0003). An override
+    naming a role the beat does not use changes nothing; an override naming a
+    provider with no key produces a source that fails at the call and is
+    narrated there, rather than being silently dropped here — the room is
+    entitled to see that the thing the trainer selected did not answer.
+
+    `think` is applied to the role's default params only. It cannot reach a
+    pane whose run block states one, because `runs.pane_params` puts the run
+    block first: m2-p2's two panes exist to contrast a budget against none, and
+    a gear that flattened them would leave the beat running and teaching
+    nothing.
+    """
+    if not overrides:
+        return bound
+
+    out = dict(bound)
+    for role, choice in overrides.items():
+        if not isinstance(choice, dict):
+            continue
+        current = out.get(role)
+        provider = (choice.get("provider") or (current.provider if current else "")).strip()
+        if not provider:
+            continue
+        model = (choice.get("model") or "").strip()
+        base = sources.api_source(provider) if provider != "ollama" else current
+        if base is None:
+            base = sources.api_source(provider)
+        params = dict(base.params)
+        think = choice.get("think")
+        if think in ("", None):
+            params.pop("think", None)
+        else:
+            params["think"] = think
+        out[role] = replace(base, model=model or base.model, params=params)
+    return out
+
+
+@router.get("/api/sources/catalogue")
+def api_source_catalogue() -> dict:
+    """What the gear may offer: configured providers and the models they list.
+
+    No credential state and no key, not even a masked one — this is read by the
+    projected page (invariant 1). "Configured" is as much as it says: whether a
+    key actually works is the console's live check, which calls each source
+    once and is the only thing entitled to claim it.
+
+    Models come from the catalogue's cache or its static fallback, never from a
+    live API call: this runs while a room is waiting and must not block on
+    somebody's network.
+    """
+    from app.llm.providers import model_catalog
+
+    settings = get_settings()
+    out: list[dict] = []
+    for provider in sources.configured_api_providers(settings):
+        cached = model_catalog.cached(provider)
+        models, live = cached if cached else (model_catalog.fallback(provider), False)
+        out.append({
+            "provider": provider,
+            "models": list(models),
+            "live": live,
+            "egress": sources.API_EGRESS.get(provider, ""),
+            "local": False,
+        })
+
+    local = sources.ollama_source(settings, check=False)
+    if local is not None:
+        try:
+            from app.llm.providers.ollama import OllamaProvider
+
+            local_models = OllamaProvider(base_url=settings.ollama_base_url).available_models()
+        except Exception:  # noqa: BLE001 - Ollama absent is a normal state
+            local_models = [local.model]
+        out.append({
+            "provider": "ollama",
+            "models": local_models or [local.model],
+            "live": bool(local_models),
+            "egress": local.egress,
+            "local": True,
+        })
+    return {"sources": out}
+
+
+@router.get("/api/document")
+def api_document(sector: str, path: str, lang: str | None = None) -> dict:
+    """One of this sector's documents, as text, for the viewer.
+
+    The room is asked to check an answer against the passages it was given, and
+    a citation it cannot open is a citation it has to take on trust — which is
+    the habit the whole lesson exists to break. Rooted on the sector and
+    refusing trainer material in `corpus.read_document`, because that is the
+    function that turns a path into a file read.
+    """
+    from app.server import corpus
+
+    try:
+        return {"path": path, "text": corpus.read_document(sector, path)}
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except (FileNotFoundError, KeyError) as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @router.get("/api/demos/{demo_id}")
 def demo(demo_id: str, sector: str, lang: str | None = None) -> dict:
     """One demo with placeholders resolved for `sector`. No trainer fields.
@@ -169,6 +290,7 @@ def run(request: RunRequest) -> StreamingResponse:
     """
     settings = get_settings()
     bound = sources.available_sources(settings)
+    bound = _apply_overrides(bound, request.overrides)
     bound = {
         role: replace(
             s,
@@ -187,6 +309,7 @@ def run(request: RunRequest) -> StreamingResponse:
             request.sector,
             bound,
             language=request.language,
+            prompt_override=request.prompt_override,
         )
     except KeyError as exc:
         # KeyError BEFORE LookupError: KeyError is a subclass of it, so the

@@ -72,16 +72,44 @@
         <p id="teaches"></p>
         <p id="blocked" class="blocked" hidden></p>
         <button id="run" type="button" data-i18n="harness.run">Esegui</button>
+        <button id="gear" type="button" class="icon" aria-expanded="false"
+                data-i18n-title="harness.gear_title" title="fonti del modello">&#9881;</button>
+        <button id="reset-run" type="button" class="secondary" hidden
+                data-i18n="harness.reset_run">Azzera questo beat</button>
       </div>
+      <div id="gear-panel" hidden></div>
       <details id="prompt-box">
         <summary id="prompt-summary" data-i18n="harness.prompt_summary">il prompt come inviato</summary>
         <pre id="prompt"></pre>
+        <button id="prompt-open" type="button" class="secondary"
+                data-i18n="harness.open_prompt">Apri e modifica</button>
       </details>
     </div>
 
     <div id="panes"></div>
   </section>
 </main>
+
+<!-- The viewer. One overlay for every "look at this properly" on the harness:
+     a pane full-page, the prompt (editable, for the next run only), and any
+     document a pane put in front of the question. It is the same controls in
+     all three cases because it is the same gesture, and a room should not have
+     to learn two ways to make text bigger. -->
+<div id="viewer" hidden role="dialog" aria-modal="true" aria-labelledby="viewer-title">
+  <header>
+    <span id="viewer-title"></span>
+    <span id="viewer-note" class="viewer-note"></span>
+    <span class="viewer-controls">
+      <button id="viewer-smaller" type="button" data-i18n-title="harness.viewer_smaller"
+              title="più piccolo">A&minus;</button>
+      <button id="viewer-bigger" type="button" data-i18n-title="harness.viewer_bigger"
+              title="più grande">A+</button>
+      <button id="viewer-close" type="button" data-i18n="harness.viewer_close">Torna alla panoramica</button>
+    </span>
+  </header>
+  <pre id="viewer-body" tabindex="0"></pre>
+  <textarea id="viewer-edit" hidden spellcheck="false"></textarea>
+</div>
 
 <script src="/static/shared/strings.it.js"></script>
 <script src="/static/shared/strings.en.js"></script>

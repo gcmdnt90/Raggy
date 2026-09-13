@@ -263,11 +263,14 @@
           "context": "retrieved",
           "label": "local - nothing leaves",
           "label_it": "locale — non esce nulla",
-          "temperature": 0.3
+          "temperature": 0.3,
+          "think": false,
+          "max_tokens": 1200
         }
       ],
       "requires_sources": 1,
-      "degrades_to": "replay"
+      "degrades_to": "replay",
+      "_think_note": "think:false on purpose. LLM_MODEL is qwen3, which deliberates by default, and Ollama returns that deliberation in `message.thinking` rather than in `content`: the pane spent its whole num_predict budget reasoning and streamed no answer. D5-A teaches that only the writer moved, not how the local model reasons - D2 is the beat that teaches deliberation, and it teaches it on a source that reports a budget."
     }
   },
   "_unblocked": {

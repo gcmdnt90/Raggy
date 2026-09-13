@@ -119,6 +119,43 @@ def documents(sector: str, folder: str | None = None) -> list[tuple[str, str]]:
     return found
 
 
+#: Paths inside a sector that must never reach the projected surface. The
+#: answer key and the trainer readmes ship on purpose (PROJECT.md, "Banco does
+#: not rely on surprise") but they belong to the console and the speaker view.
+#: Checked here because this is the function that turns a path into text.
+TRAINER_PATHS = ("_perito/", "leggimi-")
+
+
+def is_trainer_path(relative: str) -> bool:
+    lowered = relative.lower()
+    return lowered.startswith("_perito/") or "/leggimi-" in f"/{lowered}"
+
+
+def read_document(sector: str, relative: str) -> str:
+    """One document of this sector, as text, for the viewer on the harness.
+
+    Rooted on the sector and refusing trainer material, for the same reason
+    `runs.read_input_file` is: this is where a string becomes a file read, so
+    this is where the boundary belongs. A path that escapes, or that names the
+    answer key, raises rather than returning a redacted version — invariant 1
+    is about what may be *rendered*, and the safe failure is no document.
+    """
+    root = data_root(sector).resolve()
+    target = (root / relative).resolve()
+    if not target.is_relative_to(root):
+        raise ValueError(t("corpus.escapes_sector", path=repr(relative)))
+    if is_trainer_path(target.relative_to(root).as_posix()):
+        raise PermissionError(t("corpus.trainer_document", path=relative))
+    if not target.is_file():
+        raise FileNotFoundError(t("corpus.no_such_document", path=relative))
+
+    if target.suffix.lower() in TEXT_SUFFIXES:
+        return target.read_text(encoding="utf-8")
+    from app.parsers.documents import parse_document
+
+    return parse_document(target)
+
+
 def all_documents_text(sector: str, folder: str | None = None) -> str:
     """Rung 2: every document, whole, one after another.
 

@@ -93,6 +93,10 @@ class Pane:
     #: Empty on every other rung — a pane showing no passages makes no claim
     #: about retrieval.
     passages: tuple[dict, ...] = field(default_factory=tuple, compare=False)
+    #: The documents behind this pane's context, by path relative to the sector.
+    #: The room is invited to check the answer against them, so they have to be
+    #: nameable and openable, not only summarised as a character count.
+    documents: tuple[str, ...] = field(default_factory=tuple, compare=False)
 
     @property
     def runnable(self) -> bool:
@@ -216,10 +220,10 @@ def pane_params(spec: dict, source: ModelSource | None) -> dict:
 
 def pane_context(
     spec: dict, block: dict, sector: str | None, query: str, lang: str | None
-) -> tuple[str, str, tuple[dict, ...], str | None]:
+) -> tuple[str, str, tuple[dict, ...], tuple[str, ...], str | None]:
     """What this pane puts in front of the question — D3's three rungs.
 
-    Returns `(strategy, text, passages, unavailable)`. The last one is the
+    Returns `(strategy, text, passages, documents, unavailable)`. The last one is the
     point: a rung that cannot be climbed makes *that pane* unavailable and
     leaves the others standing, so the room still sees the ladder and is told
     which rung did not run. Falling back to another rung would be the harness
@@ -228,35 +232,43 @@ def pane_context(
     """
     strategy = spec.get("context", "none")
     if strategy == "none" or sector is None:
-        return "none", "", (), None
+        return "none", "", (), (), None
 
     from app.server import corpus
 
     folder = (block.get("corpus") or {}).get("dir")
     try:
         if strategy == "all":
+            sources = tuple(source for source, _ in corpus.documents(sector, folder))
             body = corpus.all_documents_text(sector, folder)
             if not body:
-                return strategy, "", (), t("corpus.no_documents", lang, sector=sector)
-            return strategy, f"{t('corpus.all_heading', lang)}\n\n{body}", (), None
+                return strategy, "", (), (), t("corpus.no_documents", lang, sector=sector)
+            return (
+                strategy,
+                f"{t('corpus.all_heading', lang)}\n\n{body}",
+                (),
+                sources,
+                None,
+            )
 
         if strategy == "retrieved":
             top_k = int((block.get("corpus") or {}).get("top_k", corpus.DEFAULT_TOP_K))
             found = corpus.retrieve(sector, query, top_k)
             if not found:
-                return strategy, "", (), t("corpus.no_documents", lang, sector=sector)
+                return strategy, "", (), (), t("corpus.no_documents", lang, sector=sector)
             return (
                 strategy,
                 corpus.context_block(found, lang),
                 tuple(p.as_dict() for p in found),
+                tuple(dict.fromkeys(p.source for p in found)),
                 None,
             )
     except (LookupError, FileNotFoundError, ValueError) as exc:
         # Named on the pane, in the room's language, instead of a 500 that
         # takes the whole beat down with it.
-        return strategy, "", (), str(exc)
+        return strategy, "", (), (), str(exc)
 
-    return "none", "", (), None
+    return "none", "", (), (), None
 
 
 def bind_panes(
@@ -280,7 +292,7 @@ def bind_panes(
         role = spec.get("role", "primary")
         source = sources.get(role)
         params = pane_params(spec, source)
-        strategy, context_text, passages, context_problem = pane_context(
+        strategy, context_text, passages, docs, context_problem = pane_context(
             spec, block, sector, query, lang
         )
         panes.append(
@@ -305,6 +317,7 @@ def bind_panes(
                 context=strategy,
                 context_text=context_text,
                 passages=passages,
+                documents=docs,
             )
         )
     return tuple(panes)
@@ -440,6 +453,7 @@ def plan(
     sources: dict[str, ModelSource],
     *,
     language: str = DEFAULT_LANGUAGE,
+    prompt_override: str | None = None,
 ) -> RunPlan:
     """Assemble a complete, executable plan for one beat.
 
@@ -463,7 +477,16 @@ def plan(
     # The prompt is built first because it is also the retrieval query: rung 3
     # must search for the question the room is about to watch being asked, not
     # for a paraphrase of it kept somewhere else.
+    #
+    # `prompt_override` is the text the trainer edited in the viewer, and it
+    # replaces the composed prompt completely - including as the retrieval
+    # query, because rung 3 must search for the question that is actually
+    # asked. It is never written back to the demo database (ADR 0001), and the
+    # harness relabels the panel so "as sent" stays a true description of a
+    # text nobody can trace to the deck.
     prompt = build_prompt(beat, block, sector, language=language)
+    if prompt_override is not None and prompt_override.strip():
+        prompt = prompt_override
     panes = bind_panes(block, sources, lang=language, sector=sector, query=prompt)
     required = int(block.get("requires_sources", 1))
     # Distinct *(provider, model)* pairs, not distinct providers. Two panes on
